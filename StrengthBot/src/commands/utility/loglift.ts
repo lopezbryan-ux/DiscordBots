@@ -24,9 +24,9 @@ export default {
           { name: 'Barbell Deadlift', value: 'Barbell Deadlift' },
         ),
     )
-    .addNumberOption((option) => option.setName('amount').setDescription('Amount lifted').setRequired(true))
-    .addNumberOption((option) => option.setName('bodyweight').setDescription('Your body weight').setRequired(true))
-    .addStringOption((option) => option.setName('datename').setDescription('Custom name for the date').setRequired(false)),
+    .addNumberOption((option) => option.setName('amount').setDescription('Amount lifted(lbs)').setRequired(true))
+    .addNumberOption((option) => option.setName('bodyweight').setDescription('Your body weight(lbs)').setRequired(true))
+    .addStringOption((option) => option.setName('datename').setDescription('Custom name for the date (optional)').setRequired(false)),
   async execute(interaction: CommandInteraction<CacheType>) {
     const chatInteraction = interaction as ChatInputCommandInteraction;
     const username = chatInteraction.user.username;
