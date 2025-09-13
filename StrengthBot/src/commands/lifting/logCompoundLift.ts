@@ -24,7 +24,7 @@ export default {
     )
     .addNumberOption((option) => option.setName('amount').setDescription('Amount lifted(lbs)').setRequired(true))
     .addNumberOption((option) => option.setName('bodyweight').setDescription('Your body weight(lbs)').setRequired(true))
-    .addStringOption((option) => option.setName('datename').setDescription('Custom name for the date (optional)').setRequired(false)),
+  .addStringOption((option) => option.setName('additionaldetails').setDescription('Additional details (optional)').setRequired(false)),
   async execute(interaction: CommandInteraction<CacheType>) {
     const chatInteraction = interaction as ChatInputCommandInteraction;
     const username = chatInteraction.user.username;
@@ -42,7 +42,7 @@ export default {
       await interaction.reply({ content: bodyweightError, flags: MessageFlags.Ephemeral });
       return;
     }
-    const datename = chatInteraction.options.getString('datename') || '';
+  const additionaldetails = chatInteraction.options.getString('additionaldetails') || '';
     const liftCategory = 'The big three';
     const logEntry = {
       username,
@@ -50,7 +50,7 @@ export default {
       exercise,
       amount,
       bodyweight,
-      datename,
+      additionaldetails,
       liftCategory,
     };
 
@@ -61,6 +61,6 @@ export default {
     logs.push(logEntry);
     fs.writeFileSync(LOG_FILE, JSON.stringify(logs, null, 2));
 
-    await interaction.reply(`Logged: ${exercise} - ${amount}lbs @ ${bodyweight}lbs bodyweight on ${date} ${datename ? `(${datename})` : ''}`);
+  await interaction.reply(`Logged: ${exercise} - ${amount}lbs @ ${bodyweight}lbs bodyweight on ${date} ${additionaldetails ? `(${additionaldetails})` : ''}`);
   },
 };

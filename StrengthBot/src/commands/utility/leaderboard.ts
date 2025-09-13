@@ -56,7 +56,7 @@ export default {
       const sorted = filtered.sort((a, b) => b.amount - a.amount);
       leaderboard = sorted
         .slice(0, 10)
-        .map((entry, idx) => `${idx + 1}. ${entry.username}: ${entry.amount}lbs on ${entry.dateName || entry.date}`)
+        .map((entry, idx) => `${idx + 1}. ${entry.username}: ${entry.amount}lbs @${entry.bodyweight}lbs on ${entry.dateName || entry.date}`)
         .join('\n');
       await interaction.reply(`🏆 Most Weight Lifted (${exercise}):\n${leaderboard || 'No entries yet.'}`);
     } else if (type === 'ratio') {
@@ -67,7 +67,7 @@ export default {
         .slice(0, 10)
         .map((entry, idx) => `${idx + 1}. ${entry.username}: ${entry.ratio.toFixed(2)} ratio (${entry.amount}lbs @ ${entry.bodyweight}lbs)`)
         .join('\n');
-      await interaction.reply(`🏆 Best Bodyweight-to-Weight Ratio:\n${leaderboard || 'No entries yet.'}`);
+      await interaction.reply(`🏆 Best Bodyweight-to-Weight Ratio (${exercise}):\n${leaderboard || 'No entries yet.'}`);
     } else {
       await interaction.reply('Invalid leaderboard type.');
     }

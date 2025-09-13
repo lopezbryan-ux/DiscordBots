@@ -9,7 +9,36 @@ const projectRoot = path.resolve(__filename, '../../../../');
 const LOG_FILE = path.join(projectRoot, 'lift_logs.json');
 
 export default {
-  data: new SlashCommandBuilder().setName('viewlifts').setDescription('View your logged lifts'),
+  data: new SlashCommandBuilder()
+    .setName('viewlifts')
+    .setDescription('View your logged lifts')
+    .addStringOption((option) =>
+      option
+        .setName('exercise')
+        .setDescription('Filter by exercise (optional)')
+        .setRequired(false)
+        .addChoices(
+          { name: 'Barbell Squat', value: 'Barbell Squat' },
+          { name: 'Barbell Bench', value: 'Barbell Bench' },
+          { name: 'Barbell Deadlift', value: 'Barbell Deadlift' },
+          { name: 'Side Pressure (Wrist wrench)', value: 'Side Pressure (Wrist wrench)' },
+          { name: 'Static Pronation (Standing)', value: 'Static Pronation (Standing)' },
+        ),
+    )
+    .addStringOption((option) =>
+      option
+        .setName('sort')
+        .setDescription('Sort by (optional)')
+        .setRequired(false)
+        .addChoices(
+          { name: 'Amount (Descending)', value: 'amount-desc' },
+          { name: 'Amount (Ascending)', value: 'amount-asc' },
+          { name: 'Bodyweight (Descending)', value: 'bodyweight-desc' },
+          { name: 'Bodyweight (Ascending)', value: 'bodyweight-asc' },
+          { name: 'Date Added (Newest First)', value: 'date-desc' },
+          { name: 'Date Added (Oldest First)', value: 'date-asc' },
+        ),
+    ),
   async execute(interaction: CommandInteraction<CacheType>) {
     const chatInteraction = interaction as ChatInputCommandInteraction;
     const username = chatInteraction.user.username;
@@ -19,24 +48,53 @@ export default {
       exercise: string;
       amount: number;
       bodyweight: number;
-      datename: string;
+      additionaldetails: string;
     }
     let logs: LiftLogEntry[] = [];
     if (fs.existsSync(LOG_FILE)) {
       logs = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')) as LiftLogEntry[];
     }
-    const userLogs = logs.filter((entry: LiftLogEntry) => entry.username === username);
+    let userLogs = logs.filter((entry: LiftLogEntry) => entry.username === username);
+    const exerciseFilter = chatInteraction.options.getString('exercise');
+    const sortOption = chatInteraction.options.getString('sort');
+    if (exerciseFilter) {
+      userLogs = userLogs.filter((entry: LiftLogEntry) => entry.exercise === exerciseFilter);
+    }
+    if (sortOption) {
+      if (sortOption === 'amount-desc') {
+        userLogs = userLogs.sort((a, b) => b.amount - a.amount);
+      } else if (sortOption === 'amount-asc') {
+        userLogs = userLogs.sort((a, b) => a.amount - b.amount);
+      } else if (sortOption === 'bodyweight-desc') {
+        userLogs = userLogs.sort((a, b) => b.bodyweight - a.bodyweight);
+      } else if (sortOption === 'bodyweight-asc') {
+        userLogs = userLogs.sort((a, b) => a.bodyweight - b.bodyweight);
+      } else if (sortOption === 'date-desc') {
+        userLogs = userLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      } else if (sortOption === 'date-asc') {
+        userLogs = userLogs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      }
+    }
     if (userLogs.length === 0) {
       await interaction.reply('No lifts logged yet.');
       return;
     }
     // Format the logs for display
     const formatted = userLogs
-      .map((entry, idx) => {
+      .map((entry) => {
         const dateOnly = entry.date.split('T')[0];
-        return `${entry.exercise}: ${entry.amount}lbs @ ${entry.bodyweight}lbs on ${dateOnly} ${entry.datename ? `(${entry.datename})` : ''}`;
+        const globalIndex = logs.findIndex(
+          (e) =>
+            e.username === entry.username &&
+            e.date === entry.date &&
+            e.exercise === entry.exercise &&
+            e.amount === entry.amount &&
+            e.bodyweight === entry.bodyweight &&
+            e.additionaldetails === entry.additionaldetails,
+        );
+        return `${entry.exercise}: ${entry.amount}lbs @ ${entry.bodyweight}lbs on ${dateOnly} ${entry.additionaldetails ? `(${entry.additionaldetails})` : ''} (id: ${globalIndex})`;
       })
       .join('\n');
-    await interaction.reply(`Your logged lifts:\n${formatted}`);
+    await interaction.reply(`Your logged lifts (${exerciseFilter || 'all exercises'}):\n${formatted}`);
   },
 };
