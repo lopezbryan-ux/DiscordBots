@@ -3,3 +3,4 @@ lift_logs.json
 .env
 node_modules/
 dist/
+strengthbot.db
