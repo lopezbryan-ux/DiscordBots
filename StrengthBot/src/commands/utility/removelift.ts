@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from 'discord.js';
-import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
+import { CommandInteraction, CacheType, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -22,12 +22,12 @@ export default {
       logs = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8'));
     }
     if (index < 0 || index >= logs.length) {
-      await interaction.reply({ content: 'Invalid index. Use /viewlifts to see your lift indexes.', ephemeral: true });
+      await interaction.reply({ content: 'Invalid index. Use /viewlifts to see your lift indexes.', flags: MessageFlags.Ephemeral });
       return;
     }
     const entryToRemove = logs[index];
     if (entryToRemove.username !== username) {
-      await interaction.reply({ content: 'You can only remove your own lifts.', ephemeral: true });
+      await interaction.reply({ content: 'You can only remove your own lifts.', flags: MessageFlags.Ephemeral });
       return;
     }
     logs.splice(index, 1);
