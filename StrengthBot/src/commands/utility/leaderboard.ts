@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import db from '../../utils/db.js';
+import { MongoClient } from 'mongodb';
 import { ArmWrestlingLifts, CompoundLifts } from '../../utils/liftChoices.js';
 
 export default {
@@ -32,9 +32,25 @@ export default {
       exercise: string;
       amount: number;
       bodyweight: number;
-      additionalDetails: string;
+      additionaldetails: string;
     }
-    let logs = db.prepare('SELECT * FROM lifts').all() as LiftLogEntry[];
+    const uri =
+      'mongodb+srv://***REMOVED***'; // Replace with your actual connection string
+    const client = new MongoClient(uri);
+    await client.connect();
+    const db = client.db('StrengthBotDb');
+    const liftsCollection = db.collection('StrengthBotCollection');
+    const rawLogs = await liftsCollection.find({}).toArray();
+    let logs: LiftLogEntry[] = rawLogs.map((doc: any) => ({
+      id: doc.id,
+      username: doc.username,
+      date: doc.date,
+      exercise: doc.exercise,
+      amount: doc.amount,
+      bodyweight: doc.bodyweight,
+      additionaldetails: doc.additionaldetails,
+    }));
+    await client.close();
     let leaderboard: string = '';
     if (type === 'weight') {
       if (!exercise) {
@@ -52,8 +68,8 @@ export default {
       } else {
         sorted.slice(0, 5).forEach((entry, idx) => {
           let value = `**Amount:** ${entry.amount} lbs\n**Bodyweight:** ${entry.bodyweight} lbs\n**Date:** ${entry.date}`;
-          if (entry.additionalDetails) {
-            value += `\n**Details:** ${entry.additionalDetails}`;
+          if (entry.additionaldetails) {
+            value += `\n**Details:** ${entry.additionaldetails}`;
           }
           embed.addFields({
             name: `#${idx + 1} 🏋️ ${entry.username}`,
@@ -76,8 +92,8 @@ export default {
       } else {
         sorted.slice(0, 5).forEach((entry, idx) => {
           let value = `**Ratio:** ${entry.ratio.toFixed(2)}\n**Amount:** ${entry.amount} lbs\n**Bodyweight:** ${entry.bodyweight} lbs`;
-          if (entry.additionalDetails) {
-            value += `\n**Details:** ${entry.additionalDetails}`;
+          if (entry.additionaldetails) {
+            value += `\n**Details:** ${entry.additionaldetails}`;
           }
           embed.addFields({
             name: `#${idx + 1} 💪 ${entry.username}`,

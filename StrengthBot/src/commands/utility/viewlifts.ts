@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import db from '../../utils/db.js';
 import { CompoundLifts, ArmWrestlingLifts } from '../../utils/liftChoices.js';
+import { MongoClient } from 'mongodb';
 
 export default {
   data: new SlashCommandBuilder()
@@ -32,20 +32,27 @@ export default {
     const chatInteraction = interaction as ChatInputCommandInteraction;
     const username = chatInteraction.user.username;
     interface LiftLogEntry {
-      id: number;
+      _id: any;
       username: string;
       date: string;
       exercise: string;
       amount: number;
       bodyweight: number;
-      additionalDetails: string;
+      additionaldetails: string;
     }
-    // Query lifts from the database for this user
-    let userLogs = db.prepare('SELECT * FROM lifts WHERE username = ?').all(username) as LiftLogEntry[];
+    // MongoDB connection
+    const uri =
+      'mongodb+srv://***REMOVED***'; // Replace with your actual connection string
+    const client = new MongoClient(uri);
+    await client.connect();
+    const db = client.db('StrengthBotDb');
+    const liftsCollection = db.collection('StrengthBotCollection');
+    let userLogs = await liftsCollection.find({ username }).toArray();
+    await client.close();
     const exerciseFilter = chatInteraction.options.getString('exercise');
     const sortOption = chatInteraction.options.getString('sort');
     if (exerciseFilter) {
-      userLogs = userLogs.filter((entry: LiftLogEntry) => entry.exercise === exerciseFilter);
+      userLogs = userLogs.filter((entry) => entry.exercise === exerciseFilter);
     }
     if (sortOption) {
       if (sortOption === 'amount-desc') {
@@ -72,13 +79,13 @@ export default {
       .setColor(0x00bfff)
       .setDescription(`Sorted by: ${sortOption || 'None'} | User: ${username}`);
 
-    userLogs.forEach((entry) => {
+    userLogs.forEach((entry: any) => {
       const dateOnly = entry.date.split('T')[0] || entry.date;
       const emoji = entry.id % 2 === 0 ? '🏋️' : '🔹';
-      let name = `─────────────\n${emoji} **${entry.exercise.toUpperCase()}** (ID: ${entry.id})`;
+      let name = `─────────────\n${emoji} **${entry.exercise.toUpperCase()}** (ID: ${entry._id})`;
       let value = `**Amount:** ${entry.amount} lbs\n` + `**Bodyweight:** ${entry.bodyweight} lbs\n` + `**Date:** ${dateOnly}`;
-      if (entry.additionalDetails) {
-        value += `\n**Details:** ${entry.additionalDetails}`;
+      if (entry.additionaldetails) {
+        value += `\n**Details:** ${entry.additionaldetails}`;
       }
       embed.addFields({
         name,

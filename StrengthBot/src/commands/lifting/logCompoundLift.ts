@@ -3,7 +3,7 @@ import { validateAmount, validateBodyweight } from '../../utils/validations.js';
 import { CompoundLifts } from '../../utils/liftChoices.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
 
-import db from '../../utils/db.js';
+import { MongoClient } from 'mongodb';
 
 export default {
   data: new SlashCommandBuilder()
@@ -48,12 +48,23 @@ export default {
       liftCategory,
     };
 
-    // Insert the lift into the database
-    const stmt = db.prepare(`
-      INSERT INTO lifts (username, date, exercise, amount, bodyweight, additionalDetails, liftCategory)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(username, date, exercise, amount, bodyweight, additionaldetails, liftCategory);
+    // Insert the lift into MongoDB
+    const uri =
+      'mongodb+srv://***REMOVED***'; // Replace with your actual connection string
+    const client = new MongoClient(uri);
+    await client.connect();
+    const db = client.db('StrengthBotDb');
+    const liftsCollection = db.collection('StrengthBotCollection');
+    await liftsCollection.insertOne({
+      username,
+      date,
+      exercise,
+      amount,
+      bodyweight,
+      additionaldetails: additionaldetails,
+      liftCategory,
+    });
+    await client.close();
 
     await interaction.reply(
       `Logged: ${exercise} - ${amount}lbs @ ${bodyweight}lbs bodyweight on ${date} ${additionaldetails ? `(${additionaldetails})` : ''}`,
