@@ -32,7 +32,7 @@ export default {
       exercise: string;
       amount: number;
       bodyweight: number;
-      additionaldetails: string;
+      additionalDetails: string;
     }
     let logs = db.prepare('SELECT * FROM lifts').all() as LiftLogEntry[];
     let leaderboard: string = '';
@@ -51,9 +51,13 @@ export default {
         embed.setDescription('No entries yet.');
       } else {
         sorted.slice(0, 5).forEach((entry, idx) => {
+          let value = `**Amount:** ${entry.amount} lbs\n**Bodyweight:** ${entry.bodyweight} lbs\n**Date:** ${entry.date}`;
+          if (entry.additionalDetails) {
+            value += `\n**Details:** ${entry.additionalDetails}`;
+          }
           embed.addFields({
             name: `#${idx + 1} 🏋️ ${entry.username}`,
-            value: `**Amount:** ${entry.amount} lbs\n**Bodyweight:** ${entry.bodyweight} lbs\n**Date:** ${entry.date}`,
+            value,
             inline: false,
           });
         });
@@ -71,9 +75,13 @@ export default {
         embed.setDescription('No entries yet.');
       } else {
         sorted.slice(0, 5).forEach((entry, idx) => {
+          let value = `**Ratio:** ${entry.ratio.toFixed(2)}\n**Amount:** ${entry.amount} lbs\n**Bodyweight:** ${entry.bodyweight} lbs`;
+          if (entry.additionalDetails) {
+            value += `\n**Details:** ${entry.additionalDetails}`;
+          }
           embed.addFields({
             name: `#${idx + 1} 💪 ${entry.username}`,
-            value: `**Ratio:** ${entry.ratio.toFixed(2)}\n**Amount:** ${entry.amount} lbs\n**Bodyweight:** ${entry.bodyweight} lbs`,
+            value,
             inline: false,
           });
         });
