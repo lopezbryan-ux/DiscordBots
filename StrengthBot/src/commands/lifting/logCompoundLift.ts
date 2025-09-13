@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { validateAmount, validateBodyweight } from '../../utils/validations.js';
+import { CompoundLifts } from '../../utils/liftChoices.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
@@ -15,12 +16,7 @@ export default {
     .setName('logcompoundlift')
     .setDescription('Log a lift')
     .addStringOption((option) =>
-      option.setName('exercise').setDescription('Exercise name').setRequired(true).addChoices(
-        { name: 'Barbell Squat', value: 'Barbell Squat' },
-        { name: 'Barbell Bench', value: 'Barbell Bench' },
-        { name: 'Barbell Deadlift', value: 'Barbell Deadift' },
-        // { name: 'Side Pressure', value: 'Side Pressure' }, // Removed 'Side Pressure'
-      ),
+      option.setName('exercise').setDescription('Exercise name').setRequired(true).addChoices(...CompoundLifts),
     )
     .addNumberOption((option) => option.setName('amount').setDescription('Amount lifted(lbs)').setRequired(true))
     .addNumberOption((option) => option.setName('bodyweight').setDescription('Your body weight(lbs)').setRequired(true))
@@ -43,7 +39,7 @@ export default {
       return;
     }
   const additionaldetails = chatInteraction.options.getString('additionaldetails') || '';
-    const liftCategory = 'The big three';
+    const liftCategory = 'Compound';
     const logEntry = {
       username,
       date,

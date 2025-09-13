@@ -3,6 +3,7 @@ import { CommandInteraction, CacheType, ChatInputCommandInteraction, EmbedBuilde
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { CompoundLifts, ArmWrestlingLifts } from '../../utils/liftChoices.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(__filename, '../../../../');
@@ -17,13 +18,7 @@ export default {
         .setName('exercise')
         .setDescription('Filter by exercise (optional)')
         .setRequired(false)
-        .addChoices(
-          { name: 'Barbell Squat', value: 'Barbell Squat' },
-          { name: 'Barbell Bench', value: 'Barbell Bench' },
-          { name: 'Barbell Deadlift', value: 'Barbell Deadlift' },
-          { name: 'Side Pressure (Wrist wrench)', value: 'Side Pressure (Wrist wrench)' },
-          { name: 'Static Pronation (Standing)', value: 'Static Pronation (Standing)' },
-        ),
+        .addChoices(...CompoundLifts, ...ArmWrestlingLifts),
     )
     .addStringOption((option) =>
       option

@@ -3,6 +3,7 @@ import { CommandInteraction, CacheType, ChatInputCommandInteraction, EmbedBuilde
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { ArmWrestlingLifts, CompoundLifts } from '../../utils/liftChoices.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(__filename, '../../../../');
@@ -24,11 +25,7 @@ export default {
         .setName('exercise')
         .setDescription('Exercise category (for weight leaderboard)')
         .setRequired(true)
-        .addChoices(
-          { name: 'Barbell Squat', value: 'Barbell Squat' },
-          { name: 'Barbell Bench', value: 'Barbell Bench' },
-          { name: 'Barbell Deadlift', value: 'Barbell Deadlift' },
-        ),
+        .addChoices(...ArmWrestlingLifts, ...CompoundLifts),
     ),
   async execute(interaction: CommandInteraction<CacheType>) {
     const chatInteraction = interaction as ChatInputCommandInteraction;
@@ -54,11 +51,14 @@ export default {
       }
       const filtered = logs.filter((l) => l.exercise === exercise);
       const sorted = filtered.sort((a, b) => b.amount - a.amount);
-      const embed = new EmbedBuilder().setTitle(`🏆 Most Weight Lifted (${exercise})`).setColor(0xffd700).setDescription('Top 3 lifters by weight lifted');
+      const embed = new EmbedBuilder()
+        .setTitle(`🏆 Most Weight Lifted (${exercise})`)
+        .setColor(0xffd700)
+        .setDescription('Top 5 lifters by weight lifted');
       if (sorted.length === 0) {
         embed.setDescription('No entries yet.');
       } else {
-        sorted.slice(0, 10).forEach((entry, idx) => {
+        sorted.slice(0, 5).forEach((entry, idx) => {
           embed.addFields({
             name: `#${idx + 1} 🏋️ ${entry.username}`,
             value: `**Amount:** ${entry.amount} lbs\n**Bodyweight:** ${entry.bodyweight} lbs\n**Date:** ${entry.dateName || entry.date}`,
@@ -74,11 +74,11 @@ export default {
       const embed = new EmbedBuilder()
         .setTitle(`🏆 Best Bodyweight-to-Weight Ratio (${exercise})`)
         .setColor(0x00bfff)
-        .setDescription('Top 10 lifters by ratio');
+        .setDescription('Top 5 lifters by ratio');
       if (sorted.length === 0) {
         embed.setDescription('No entries yet.');
       } else {
-        sorted.slice(0, 10).forEach((entry, idx) => {
+        sorted.slice(0, 5).forEach((entry, idx) => {
           embed.addFields({
             name: `#${idx + 1} 💪 ${entry.username}`,
             value: `**Ratio:** ${entry.ratio.toFixed(2)}\n**Amount:** ${entry.amount} lbs\n**Bodyweight:** ${entry.bodyweight} lbs`,
