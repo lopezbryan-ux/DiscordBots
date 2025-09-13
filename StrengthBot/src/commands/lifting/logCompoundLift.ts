@@ -1,4 +1,5 @@
-import { SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
+import { validateAmount, validateBodyweight } from '../../utils/validations.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
@@ -30,7 +31,17 @@ export default {
     const date = new Date().toLocaleDateString('en-CA');
     const exercise = chatInteraction.options.getString('exercise', true);
     const amount = chatInteraction.options.getNumber('amount', true);
+    const amountError = validateAmount(amount);
+    if (amountError) {
+      await interaction.reply({ content: amountError, flags: MessageFlags.Ephemeral });
+      return;
+    }
     const bodyweight = chatInteraction.options.getNumber('bodyweight', true);
+    const bodyweightError = validateBodyweight(bodyweight);
+    if (bodyweightError) {
+      await interaction.reply({ content: bodyweightError, flags: MessageFlags.Ephemeral });
+      return;
+    }
     const datename = chatInteraction.options.getString('datename') || '';
     const liftCategory = 'The big three';
     const logEntry = {
@@ -40,7 +51,7 @@ export default {
       amount,
       bodyweight,
       datename,
-      liftCategory
+      liftCategory,
     };
 
     let logs = [];

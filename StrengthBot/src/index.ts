@@ -24,21 +24,31 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] }) as ExtendedCl
 
 client.commands = new Collection();
 
-const foldersPath = path.join(__dirname, 'commands');
-const commandFolders = fs.readdirSync(foldersPath);
-
-for (const folder of commandFolders) {
-  const commandsPath = path.join(foldersPath, folder);
-  const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'));
-  for (const file of commandFiles) {
-    const filePath = path.join(commandsPath, file);
-  const commandModule = await import(pathToFileURL(filePath).href);
-    const command = Object.values(commandModule).find((cmd: any) => cmd && 'data' in cmd && 'execute' in cmd);
-    if (command) {
-      client.commands.set((command as Command).data.name, command as Command);
-    } else {
-      console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+function getAllCommandFiles(dir: string): string[] {
+  let results: string[] = [];
+  const list = fs.readdirSync(dir);
+  for (const file of list) {
+    const filePath = path.join(dir, file);
+    const stat = fs.statSync(filePath);
+    if (stat && stat.isDirectory()) {
+      results = results.concat(getAllCommandFiles(filePath));
+    } else if (file.endsWith('.js')) {
+      results.push(filePath);
     }
+  }
+  return results;
+}
+
+const commandsPath = path.join(__dirname, 'commands');
+const commandFiles = getAllCommandFiles(commandsPath);
+
+for (const filePath of commandFiles) {
+  const commandModule = await import(pathToFileURL(filePath).href);
+  const command = Object.values(commandModule).find((cmd: any) => cmd && 'data' in cmd && 'execute' in cmd);
+  if (command) {
+    client.commands.set((command as Command).data.name, command as Command);
+  } else {
+    console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
   }
 }
 
