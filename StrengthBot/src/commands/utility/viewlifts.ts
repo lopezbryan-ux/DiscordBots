@@ -1,13 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import db from '../../utils/db.js';
 import { CompoundLifts, ArmWrestlingLifts } from '../../utils/liftChoices.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const projectRoot = path.resolve(__filename, '../../../../');
-const LOG_FILE = path.join(projectRoot, 'lift_logs.json');
 
 export default {
   data: new SlashCommandBuilder()
@@ -38,18 +32,16 @@ export default {
     const chatInteraction = interaction as ChatInputCommandInteraction;
     const username = chatInteraction.user.username;
     interface LiftLogEntry {
+      id: number;
       username: string;
       date: string;
       exercise: string;
       amount: number;
       bodyweight: number;
-      additionaldetails: string;
+      additionalDetails: string;
     }
-    let logs: LiftLogEntry[] = [];
-    if (fs.existsSync(LOG_FILE)) {
-      logs = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')) as LiftLogEntry[];
-    }
-    let userLogs = logs.filter((entry: LiftLogEntry) => entry.username === username);
+    // Query lifts from the database for this user
+    let userLogs = db.prepare('SELECT * FROM lifts WHERE username = ?').all(username) as LiftLogEntry[];
     const exerciseFilter = chatInteraction.options.getString('exercise');
     const sortOption = chatInteraction.options.getString('sort');
     if (exerciseFilter) {
@@ -81,22 +73,12 @@ export default {
       .setDescription(`Sorted by: ${sortOption || 'None'} | User: ${username}`);
 
     userLogs.forEach((entry) => {
-      const dateOnly = entry.date.split('T')[0];
-      const globalIndex = logs.findIndex(
-        (e) =>
-          e.username === entry.username &&
-          e.date === entry.date &&
-          e.exercise === entry.exercise &&
-          e.amount === entry.amount &&
-          e.bodyweight === entry.bodyweight &&
-          e.additionaldetails === entry.additionaldetails,
-      );
-      // Alternate emoji for visual separation
-      const emoji = globalIndex % 2 === 0 ? '🏋️' : '🔹';
-      let name = `─────────────\n${emoji} **${entry.exercise.toUpperCase()}** (ID: ${globalIndex})`;
+      const dateOnly = entry.date.split('T')[0] || entry.date;
+      const emoji = entry.id % 2 === 0 ? '🏋️' : '🔹';
+      let name = `─────────────\n${emoji} **${entry.exercise.toUpperCase()}** (ID: ${entry.id})`;
       let value = `**Amount:** ${entry.amount} lbs\n` + `**Bodyweight:** ${entry.bodyweight} lbs\n` + `**Date:** ${dateOnly}`;
-      if (entry.additionaldetails) {
-        value += `\n**Details:** ${entry.additionaldetails}`;
+      if (entry.additionalDetails) {
+        value += `\n**Details:** ${entry.additionalDetails}`;
       }
       embed.addFields({
         name,

@@ -1,14 +1,8 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { ArmWrestlingLifts } from '../../utils/liftChoices.js';
 
-// Always resolve to project root, not dist/src
-const __filename = fileURLToPath(import.meta.url);
-const projectRoot = path.resolve(__filename, '../../../../');
-const LOG_FILE = path.join(projectRoot, 'lift_logs.json');
+import { ArmWrestlingLifts } from '../../utils/liftChoices.js';
+import db from '../../utils/db.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -27,7 +21,7 @@ export default {
   async execute(interaction: CommandInteraction<CacheType>) {
     const chatInteraction = interaction as ChatInputCommandInteraction;
     const username = chatInteraction.user.username;
-    const date = new Date().toLocaleDateString('en-CA');
+    const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD in UTC
     const exercise = chatInteraction.options.getString('exercise', true);
     const amount = chatInteraction.options.getNumber('amount', true);
     const bodyweight = chatInteraction.options.getNumber('bodyweight', true);
@@ -43,12 +37,12 @@ export default {
       liftCategory,
     };
 
-    let logs = [];
-    if (fs.existsSync(LOG_FILE)) {
-      logs = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8'));
-    }
-    logs.push(logEntry);
-    fs.writeFileSync(LOG_FILE, JSON.stringify(logs, null, 2));
+    // Insert the lift into the database
+    const stmt = db.prepare(`
+      INSERT INTO lifts (username, date, exercise, amount, bodyweight, additionalDetails, liftCategory)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(username, date, exercise, amount, bodyweight, additionaldetails, liftCategory);
 
     await interaction.reply(
       `Logged: ${exercise} - ${amount}lbs @ ${bodyweight}lbs bodyweight on ${date} ${additionaldetails ? `(${additionaldetails})` : ''}`,
