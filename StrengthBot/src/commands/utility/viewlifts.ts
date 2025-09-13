@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from 'discord.js';
-import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
+import { CommandInteraction, CacheType, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -79,22 +79,36 @@ export default {
       await interaction.reply('No lifts logged yet.');
       return;
     }
-    // Format the logs for display
-    const formatted = userLogs
-      .map((entry) => {
-        const dateOnly = entry.date.split('T')[0];
-        const globalIndex = logs.findIndex(
-          (e) =>
-            e.username === entry.username &&
-            e.date === entry.date &&
-            e.exercise === entry.exercise &&
-            e.amount === entry.amount &&
-            e.bodyweight === entry.bodyweight &&
-            e.additionaldetails === entry.additionaldetails,
-        );
-        return `${entry.exercise}: ${entry.amount}lbs @ ${entry.bodyweight}lbs on ${dateOnly} ${entry.additionaldetails ? `(${entry.additionaldetails})` : ''} (id: ${globalIndex})`;
-      })
-      .join('\n');
-    await interaction.reply(`Your logged lifts (${exerciseFilter || 'all exercises'}):\n${formatted}`);
+    // Format the logs for display using an embed
+    const embed = new EmbedBuilder()
+      .setTitle(`Your Logged Lifts (${exerciseFilter || 'All Exercises'})`)
+      .setColor(0x00bfff)
+      .setDescription(`Sorted by: ${sortOption || 'None'} | User: ${username}`);
+
+    userLogs.forEach((entry) => {
+      const dateOnly = entry.date.split('T')[0];
+      const globalIndex = logs.findIndex(
+        (e) =>
+          e.username === entry.username &&
+          e.date === entry.date &&
+          e.exercise === entry.exercise &&
+          e.amount === entry.amount &&
+          e.bodyweight === entry.bodyweight &&
+          e.additionaldetails === entry.additionaldetails,
+      );
+      // Alternate emoji for visual separation
+      const emoji = globalIndex % 2 === 0 ? '🏋️' : '🔹';
+      let name = `─────────────\n${emoji} **${entry.exercise.toUpperCase()}** (ID: ${globalIndex})`;
+      let value = `**Amount:** ${entry.amount} lbs\n` + `**Bodyweight:** ${entry.bodyweight} lbs\n` + `**Date:** ${dateOnly}`;
+      if (entry.additionaldetails) {
+        value += `\n**Details:** ${entry.additionaldetails}`;
+      }
+      embed.addFields({
+        name,
+        value,
+        inline: false,
+      });
+    });
+    await interaction.reply({ embeds: [embed] });
   },
 };

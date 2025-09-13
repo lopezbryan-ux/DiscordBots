@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from 'discord.js';
-import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
+import { CommandInteraction, CacheType, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -54,20 +54,39 @@ export default {
       }
       const filtered = logs.filter((l) => l.exercise === exercise);
       const sorted = filtered.sort((a, b) => b.amount - a.amount);
-      leaderboard = sorted
-        .slice(0, 10)
-        .map((entry, idx) => `${idx + 1}. ${entry.username}: ${entry.amount}lbs @${entry.bodyweight}lbs on ${entry.dateName || entry.date}`)
-        .join('\n');
-      await interaction.reply(`🏆 Most Weight Lifted (${exercise}):\n${leaderboard || 'No entries yet.'}`);
+      const embed = new EmbedBuilder().setTitle(`🏆 Most Weight Lifted (${exercise})`).setColor(0xffd700).setDescription('Top 3 lifters by weight lifted');
+      if (sorted.length === 0) {
+        embed.setDescription('No entries yet.');
+      } else {
+        sorted.slice(0, 10).forEach((entry, idx) => {
+          embed.addFields({
+            name: `#${idx + 1} 🏋️ ${entry.username}`,
+            value: `**Amount:** ${entry.amount} lbs\n**Bodyweight:** ${entry.bodyweight} lbs\n**Date:** ${entry.dateName || entry.date}`,
+            inline: false,
+          });
+        });
+      }
+      await interaction.reply({ embeds: [embed] });
     } else if (type === 'ratio') {
       const filteredExercises = logs.filter((l) => l.exercise === exercise);
       const withRatio = filteredExercises.map((l) => ({ ...l, ratio: l.amount / l.bodyweight }));
       const sorted = withRatio.sort((a, b) => b.ratio - a.ratio);
-      leaderboard = sorted
-        .slice(0, 10)
-        .map((entry, idx) => `${idx + 1}. ${entry.username}: ${entry.ratio.toFixed(2)} ratio (${entry.amount}lbs @ ${entry.bodyweight}lbs)`)
-        .join('\n');
-      await interaction.reply(`🏆 Best Bodyweight-to-Weight Ratio (${exercise}):\n${leaderboard || 'No entries yet.'}`);
+      const embed = new EmbedBuilder()
+        .setTitle(`🏆 Best Bodyweight-to-Weight Ratio (${exercise})`)
+        .setColor(0x00bfff)
+        .setDescription('Top 10 lifters by ratio');
+      if (sorted.length === 0) {
+        embed.setDescription('No entries yet.');
+      } else {
+        sorted.slice(0, 10).forEach((entry, idx) => {
+          embed.addFields({
+            name: `#${idx + 1} 💪 ${entry.username}`,
+            value: `**Ratio:** ${entry.ratio.toFixed(2)}\n**Amount:** ${entry.amount} lbs\n**Bodyweight:** ${entry.bodyweight} lbs`,
+            inline: false,
+          });
+        });
+      }
+      await interaction.reply({ embeds: [embed] });
     } else {
       await interaction.reply('Invalid leaderboard type.');
     }
