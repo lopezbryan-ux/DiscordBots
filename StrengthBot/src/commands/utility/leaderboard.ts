@@ -1,13 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import db from '../../utils/db.js';
 import { ArmWrestlingLifts, CompoundLifts } from '../../utils/liftChoices.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const projectRoot = path.resolve(__filename, '../../../../');
-const LOG_FILE = path.join(projectRoot, 'lift_logs.json');
 
 export default {
   data: new SlashCommandBuilder()
@@ -32,17 +26,15 @@ export default {
     const type = chatInteraction.options.getString('type', true);
     const exercise = chatInteraction.options.getString('exercise');
     interface LiftLogEntry {
+      id: number;
       username: string;
       date: string;
       exercise: string;
       amount: number;
       bodyweight: number;
-      dateName: string;
+      additionaldetails: string;
     }
-    let logs: LiftLogEntry[] = [];
-    if (fs.existsSync(LOG_FILE)) {
-      logs = JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')) as LiftLogEntry[];
-    }
+    let logs = db.prepare('SELECT * FROM lifts').all() as LiftLogEntry[];
     let leaderboard: string = '';
     if (type === 'weight') {
       if (!exercise) {
@@ -61,7 +53,7 @@ export default {
         sorted.slice(0, 5).forEach((entry, idx) => {
           embed.addFields({
             name: `#${idx + 1} 🏋️ ${entry.username}`,
-            value: `**Amount:** ${entry.amount} lbs\n**Bodyweight:** ${entry.bodyweight} lbs\n**Date:** ${entry.dateName || entry.date}`,
+            value: `**Amount:** ${entry.amount} lbs\n**Bodyweight:** ${entry.bodyweight} lbs\n**Date:** ${entry.date}`,
             inline: false,
           });
         });
