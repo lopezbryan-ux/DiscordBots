@@ -23,7 +23,7 @@ export default {
       option
         .setName('exercise')
         .setDescription('Exercise category (for weight leaderboard)')
-        .setRequired(false)
+        .setRequired(true)
         .addChoices(
           { name: 'Barbell Squat', value: 'Barbell Squat' },
           { name: 'Barbell Bench', value: 'Barbell Bench' },
@@ -60,7 +60,8 @@ export default {
         .join('\n');
       await interaction.reply(`🏆 Most Weight Lifted (${exercise}):\n${leaderboard || 'No entries yet.'}`);
     } else if (type === 'ratio') {
-      const withRatio = logs.map((l) => ({ ...l, ratio: l.amount / l.bodyweight }));
+      const filteredExercises = logs.filter((l) => l.exercise === exercise);
+      const withRatio = filteredExercises.map((l) => ({ ...l, ratio: l.amount / l.bodyweight }));
       const sorted = withRatio.sort((a, b) => b.ratio - a.ratio);
       leaderboard = sorted
         .slice(0, 10)

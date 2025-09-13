@@ -11,18 +11,15 @@ const LOG_FILE = path.join(projectRoot, 'lift_logs.json');
 
 export default {
   data: new SlashCommandBuilder()
-    .setName('loglift')
+    .setName('logcompoundlift')
     .setDescription('Log a lift')
     .addStringOption((option) =>
-      option
-        .setName('exercise')
-        .setDescription('Exercise name')
-        .setRequired(true)
-        .addChoices(
-          { name: 'Barbell Squat', value: 'Barbell Squat' },
-          { name: 'Barbell Bench', value: 'Barbell Bench' },
-          { name: 'Barbell Deadlift', value: 'Barbell Deadlift' },
-        ),
+      option.setName('exercise').setDescription('Exercise name').setRequired(true).addChoices(
+        { name: 'Barbell Squat', value: 'Barbell Squat' },
+        { name: 'Barbell Bench', value: 'Barbell Bench' },
+        { name: 'Barbell Deadlift', value: 'Barbell Deadift' },
+        // { name: 'Side Pressure', value: 'Side Pressure' }, // Removed 'Side Pressure'
+      ),
     )
     .addNumberOption((option) => option.setName('amount').setDescription('Amount lifted(lbs)').setRequired(true))
     .addNumberOption((option) => option.setName('bodyweight').setDescription('Your body weight(lbs)').setRequired(true))
@@ -35,7 +32,7 @@ export default {
     const amount = chatInteraction.options.getNumber('amount', true);
     const bodyweight = chatInteraction.options.getNumber('bodyweight', true);
     const datename = chatInteraction.options.getString('datename') || '';
-
+    const liftCategory = 'The big three';
     const logEntry = {
       username,
       date,
@@ -43,6 +40,7 @@ export default {
       amount,
       bodyweight,
       datename,
+      liftCategory
     };
 
     let logs = [];
