@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import { CompoundLifts, ArmWrestlingLifts } from '../../utils/liftChoices.js';
-import { MongoClient } from 'mongodb';
+import { mongoClient } from '../../index.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -40,15 +40,10 @@ export default {
       bodyweight: number;
       additionaldetails: string;
     }
-    // MongoDB connection
-    const uri =
-      'mongodb+srv://***REMOVED***'; // Replace with your actual connection string
-    const client = new MongoClient(uri);
-    await client.connect();
-    const db = client.db('StrengthBotDb');
+    // Use shared MongoDB client
+    const db = mongoClient.db('StrengthBotDb');
     const liftsCollection = db.collection('StrengthBotCollection');
     let userLogs = await liftsCollection.find({ username }).toArray();
-    await client.close();
     const exerciseFilter = chatInteraction.options.getString('exercise');
     const sortOption = chatInteraction.options.getString('sort');
     if (exerciseFilter) {

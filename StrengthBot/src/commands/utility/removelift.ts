@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
-
-import { MongoClient, ObjectId } from 'mongodb';
+import { mongoClient } from '../../index.js';
+import { ObjectId } from 'mongodb';
 
 export default {
   data: new SlashCommandBuilder()
@@ -12,17 +12,12 @@ export default {
     const chatInteraction = interaction as ChatInputCommandInteraction;
     const username = chatInteraction.user.username;
     const id = chatInteraction.options.getString('id', true); // Accept alphanumeric lift ID (no validation)
-    // MongoDB connection
-    const uri =
-      'mongodb+srv://***REMOVED***'; // Replace with your actual connection string
-    const client = new MongoClient(uri);
-    await client.connect();
-    const db = client.db('StrengthBotDb');
+    // Use shared MongoDB client
+    const db = mongoClient.db('StrengthBotDb');
     const liftsCollection = db.collection('StrengthBotCollection');
     // Find the lift entry by _id and username
     const entryToRemove = await liftsCollection.findOne({ _id: new ObjectId(id), username });
     if (!entryToRemove) {
-      await client.close();
       await interaction.reply({
         content: 'Invalid ID or you do not own this lift. Use /viewlifts to see your lift IDs.',
         flags: MessageFlags.Ephemeral,
@@ -30,7 +25,6 @@ export default {
       return;
     }
     await liftsCollection.deleteOne({ _id: new ObjectId(id), username });
-    await client.close();
     // Format removed entry info
     const dateOnly = entryToRemove.date ? entryToRemove.date.split('T')[0] : '';
     let details = `Removed lift (ID: ${id}):\n`;

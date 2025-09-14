@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import { MongoClient } from 'mongodb';
+import { mongoClient } from '../../index.js';
 import { ArmWrestlingLifts, CompoundLifts } from '../../utils/liftChoices.js';
 
 export default {
@@ -34,11 +34,8 @@ export default {
       bodyweight: number;
       additionaldetails: string;
     }
-    const uri =
-      'mongodb+srv://***REMOVED***'; // Replace with your actual connection string
-    const client = new MongoClient(uri);
-    await client.connect();
-    const db = client.db('StrengthBotDb');
+    // Use shared MongoDB client
+    const db = mongoClient.db('StrengthBotDb');
     const liftsCollection = db.collection('StrengthBotCollection');
     const rawLogs = await liftsCollection.find({}).toArray();
     let logs: LiftLogEntry[] = rawLogs.map((doc: any) => ({
@@ -50,7 +47,6 @@ export default {
       bodyweight: doc.bodyweight,
       additionaldetails: doc.additionaldetails,
     }));
-    await client.close();
     let leaderboard: string = '';
     if (type === 'weight') {
       if (!exercise) {

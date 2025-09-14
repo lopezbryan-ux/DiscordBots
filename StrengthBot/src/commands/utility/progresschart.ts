@@ -2,7 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
 
 import { CompoundLifts, ArmWrestlingLifts } from '../../utils/liftChoices.js';
-import { MongoClient } from 'mongodb';
+import { mongoClient } from '../../index.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -25,18 +25,14 @@ export default {
       date: string;
       amount: number;
     }
-    const uri =
-      'mongodb+srv://***REMOVED***'; // Replace with your actual connection string
-    const client = new MongoClient(uri);
-    await client.connect();
-    const db = client.db('StrengthBotDb');
+    // Use shared MongoDB client
+    const db = mongoClient.db('StrengthBotDb');
     const liftsCollection = db.collection('StrengthBotCollection');
     const rawLifts = await liftsCollection.find({ username, exercise }).sort({ date: 1 }).toArray();
     const lifts: LiftEntry[] = rawLifts.map((doc) => ({
       date: doc.date,
       amount: doc.amount,
     }));
-    await client.close();
     if (lifts.length === 0) {
       await interaction.reply('No lifts found for this exercise.');
       return;
