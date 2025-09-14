@@ -2,7 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
 
 import { ArmWrestlingLifts } from '../../utils/liftChoices.js';
-import { MongoClient } from 'mongodb';
+import { mongoClient } from '../../index.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -37,12 +37,8 @@ export default {
       liftCategory,
     };
 
-    // Insert the lift into MongoDB
-    const uri =
-      'mongodb+srv://***REMOVED***'; // Replace with your actual connection string
-    const client = new MongoClient(uri);
-    await client.connect();
-    const db = client.db('StrengthBotDb');
+    // Insert the lift into MongoDB using shared client
+    const db = mongoClient.db('StrengthBotDb');
     const liftsCollection = db.collection('StrengthBotCollection');
     await liftsCollection.insertOne({
       username,
@@ -53,7 +49,6 @@ export default {
       additionaldetails: additionaldetails,
       liftCategory,
     });
-    await client.close();
 
     await interaction.reply(
       `Logged: ${exercise} - ${amount}lbs @ ${bodyweight}lbs bodyweight on ${date} ${additionaldetails ? `(${additionaldetails})` : ''}`,
