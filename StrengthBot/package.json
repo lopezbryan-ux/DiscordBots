@@ -9,7 +9,7 @@
     "start": "node dist/index.js",
     "dev": "tsc && node dist/index.js",
     "deploy-commands": "node dist/deploy-commands.js",
-    "cleanrun": "rm -rf dist && npm run build && npm run deploy-commands && node dist/index.js"
+    "cleanrun": "git pull && rm -rf dist && npm run build && npm run deploy-commands && node dist/index.js"
   },
   "author": "",
   "license": "MIT",
