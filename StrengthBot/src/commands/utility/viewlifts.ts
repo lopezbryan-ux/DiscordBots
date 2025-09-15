@@ -70,7 +70,7 @@ export default {
     }
     // Format the logs for display using an embed
     const embed = new EmbedBuilder()
-      .setTitle(`Your Logged Lifts (${exerciseFilter || 'All Exercises999'})`)
+      .setTitle(`Your Logged Lifts (${exerciseFilter || 'All Exercises'})`)
       .setColor(0x00bfff)
       .setDescription(`Sorted by: ${sortOption || 'None'} | User: ${username}`);
 
