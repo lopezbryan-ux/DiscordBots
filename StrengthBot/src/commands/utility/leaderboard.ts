@@ -48,6 +48,20 @@ export default {
       additionaldetails: doc.additionaldetails,
     }));
     let leaderboard: string = '';
+    // Helper to get top N unique users from a sorted array
+    function getTopNUnique(sortedArr: any[], n: number) {
+      const seen = new Set();
+      const result = [];
+      for (const entry of sortedArr) {
+        if (!seen.has(entry.username)) {
+          seen.add(entry.username);
+          result.push(entry);
+        }
+        if (result.length === n) break;
+      }
+      return result;
+    }
+
     if (type === 'weight') {
       if (!exercise) {
         await interaction.reply('Please select an exercise for the weight leaderboard.');
@@ -55,14 +69,15 @@ export default {
       }
       const filtered = logs.filter((l) => l.exercise === exercise);
       const sorted = filtered.sort((a, b) => b.amount - a.amount);
+      const topUnique = getTopNUnique(sorted, 3);
       const embed = new EmbedBuilder()
         .setTitle(`🏆 Most Weight Lifted (${exercise})`)
         .setColor(0xffd700)
-        .setDescription('Top 5 lifters by weight lifted');
-      if (sorted.length === 0) {
+        .setDescription('Top 3 unique lifters by weight lifted');
+      if (topUnique.length === 0) {
         embed.setDescription('No entries yet.');
       } else {
-        sorted.slice(0, 5).forEach((entry, idx) => {
+        topUnique.forEach((entry, idx) => {
           let value = `**Amount:** ${entry.amount} lbs\n**Bodyweight:** ${entry.bodyweight} lbs\n**Date:** ${entry.date}`;
           if (entry.additionaldetails) {
             value += `\n**Details:** ${entry.additionaldetails}`;
@@ -79,14 +94,15 @@ export default {
       const filteredExercises = logs.filter((l) => l.exercise === exercise);
       const withRatio = filteredExercises.map((l) => ({ ...l, ratio: l.amount / l.bodyweight }));
       const sorted = withRatio.sort((a, b) => b.ratio - a.ratio);
+      const topUnique = getTopNUnique(sorted, 3);
       const embed = new EmbedBuilder()
         .setTitle(`🏆 Best Bodyweight-to-Weight Ratio (${exercise})`)
         .setColor(0x00bfff)
-        .setDescription('Top 5 lifters by ratio');
-      if (sorted.length === 0) {
+        .setDescription('Top 3 unique lifters by ratio');
+      if (topUnique.length === 0) {
         embed.setDescription('No entries yet.');
       } else {
-        sorted.slice(0, 5).forEach((entry, idx) => {
+        topUnique.forEach((entry, idx) => {
           let value = `**Ratio:** ${entry.ratio.toFixed(2)}\n**Amount:** ${entry.amount} lbs\n**Bodyweight:** ${entry.bodyweight} lbs`;
           if (entry.additionaldetails) {
             value += `\n**Details:** ${entry.additionaldetails}`;
