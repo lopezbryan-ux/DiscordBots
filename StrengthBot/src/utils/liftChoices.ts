@@ -11,4 +11,5 @@ export const CompoundLifts = [
 export const ArmWrestlingLifts = [
   { name: 'Side Pressure (Wrist wrench)', value: 'Side Pressure (Wrist wrench)' },
   { name: 'Static Pronation (Standing)', value: 'Static Pronation (Standing)' },
+  { name: 'Static Riser (Standing)', value: 'Static Riser (Standing)' },
 ];
