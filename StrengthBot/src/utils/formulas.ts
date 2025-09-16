@@ -20,20 +20,10 @@ export const oneRepMaxFormulas: Record<string, OneRepMaxFormula> = {
     calc: (weight, reps) => weight * (1 + reps / 30),
     desc: '1RM = weight × (1 + reps / 30)',
   },
-  mayhew: {
-    name: 'Mayhew',
-    calc: (weight, reps) => (weight * 100) / (52.2 + 41.9 * Math.exp(-0.055 * reps)),
-    desc: '1RM = weight × 100 / (52.2 + 41.9 × e^(–0.055 × reps))',
-  },
   oconner: {
     name: 'O’Conner',
     calc: (weight, reps) => weight * (1 + 0.025 * reps),
     desc: '1RM = weight × (1 + 0.025 × reps)',
-  },
-  wathan: {
-    name: 'Wathan',
-    calc: (weight, reps) => (weight * 100) / (48.8 + 53.8 * Math.exp(-0.075 * reps)),
-    desc: '1RM = weight × 100 / (48.8 + 53.8 × e^(–0.075 × reps))',
   },
   lander: {
     name: 'Lander',
