@@ -1,18 +1,18 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import { CompoundLifts, ArmWrestlingLifts, IsolationLifts } from '../../utils/liftChoices.js';
+import { IsolationLifts, LiftingCategories } from '../../utils/liftChoices.js';
 import { mongoClient } from '../../index.js';
 
 export default {
   data: new SlashCommandBuilder()
-    .setName('viewlifts')
-    .setDescription('View your logged lifts')
+    .setName('viewisolationlifts')
+    .setDescription('View your logged isolation lifts')
     .addStringOption((option) =>
       option
         .setName('exercise')
         .setDescription('Filter by exercise (optional)')
         .setRequired(false)
-        .addChoices(...CompoundLifts, ...ArmWrestlingLifts, ...IsolationLifts),
+        .addChoices(...IsolationLifts),
     )
     .addStringOption((option) =>
       option
@@ -31,19 +31,15 @@ export default {
   async execute(interaction: CommandInteraction<CacheType>) {
     const chatInteraction = interaction as ChatInputCommandInteraction;
     const username = chatInteraction.user.username;
-    interface LiftLogEntry {
-      _id: any;
-      username: string;
-      date: string;
-      exercise: string;
-      amount: number;
-      bodyweight: number;
-      additionaldetails: string;
-    }
-    // Use shared MongoDB client
     const db = mongoClient.db('StrengthBotDb');
     const liftsCollection = db.collection('StrengthBotCollection');
-    let userLogs = await liftsCollection.find({ username }).toArray();
+    let userLogs = await liftsCollection
+      .find({
+        username,
+        liftCategory: LiftingCategories.Isolation, // Only Isolation lifts
+      })
+      .toArray();
+
     const exerciseFilter = chatInteraction.options.getString('exercise');
     const sortOption = chatInteraction.options.getString('sort');
     if (exerciseFilter) {
@@ -65,19 +61,18 @@ export default {
       }
     }
     if (userLogs.length === 0) {
-      await interaction.reply('No lifts logged yet.');
+      const exerciseMsg = exerciseFilter ? ` for exercise **${exerciseFilter}**` : '';
+      await interaction.reply(`No isolation lifts logged yet${exerciseMsg}.`);
       return;
     }
-    // Format the logs for display using an embed
     const embed = new EmbedBuilder()
-      .setTitle(`Your Logged Lifts (${exerciseFilter || 'All Exercises'})`)
-      .setColor(0x00bfff)
+      .setTitle(`Your Logged Isolation Lifts (${exerciseFilter || 'All Exercises'})`)
+      .setColor(0x8e44ad)
       .setDescription(`Sorted by: ${sortOption || 'None'} | User: ${username}`);
 
     userLogs.forEach((entry: any) => {
       const dateOnly = entry.date.split('T')[0] || entry.date;
-      const emoji = entry.id % 2 === 0 ? '🏋️' : '🔹';
-      let name = `─────────────\n${emoji} **${entry.exercise.toUpperCase()}** (ID: ${entry._id})`;
+      let name = `─────────────\n💪 **${entry.exercise.toUpperCase()}** (ID: ${entry._id})`;
       let value = `**Amount:** ${entry.amount} lbs\n` + `**Bodyweight:** ${entry.bodyweight} lbs\n` + `**Date:** ${dateOnly}`;
       if (entry.additionaldetails) {
         value += `\n**Details:** ${entry.additionaldetails}`;
