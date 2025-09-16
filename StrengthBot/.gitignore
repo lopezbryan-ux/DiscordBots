@@ -4,3 +4,4 @@ lift_logs.json
 node_modules/
 dist/
 strengthbot.db
+.github/copilot-instructions.md
