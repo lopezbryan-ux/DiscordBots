@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import { CompoundLifts, ArmWrestlingLifts } from '../../utils/liftChoices.js';
+import { CompoundLifts, ArmWrestlingLifts, IsolationLifts } from '../../utils/liftChoices.js';
 import { mongoClient } from '../../index.js';
 
 export default {
@@ -12,7 +12,7 @@ export default {
         .setName('exercise')
         .setDescription('Filter by exercise (optional)')
         .setRequired(false)
-        .addChoices(...CompoundLifts, ...ArmWrestlingLifts),
+        .addChoices(...CompoundLifts, ...ArmWrestlingLifts, ...IsolationLifts),
     )
     .addStringOption((option) =>
       option
