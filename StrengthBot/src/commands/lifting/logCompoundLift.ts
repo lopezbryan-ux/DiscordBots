@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { validateAmount, validateBodyweight } from '../../utils/validations.js';
-import { CompoundLifts } from '../../utils/liftChoices.js';
+import { CompoundLifts, LiftingCategories } from '../../utils/liftChoices.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
 
 import { MongoClient } from 'mongodb';
@@ -38,7 +38,7 @@ export default {
       return;
     }
     const additionaldetails = chatInteraction.options.getString('additionaldetails') || '';
-    const liftCategory = 'Compound';
+    const liftCategory = LiftingCategories.Compound;
     const logEntry = {
       username,
       date,

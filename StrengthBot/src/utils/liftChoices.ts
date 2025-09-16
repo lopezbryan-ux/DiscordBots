@@ -6,7 +6,6 @@ export const CompoundLifts = [
   { name: 'Barbell Deadlift', value: 'Barbell Deadlift' },
   { name: 'Chin Up (BW + Weights)', value: 'Chin Up (BW + Weights)' },
   { name: 'Barbell Standing OHP', value: 'Barbell Standing OHP' },
-  { name: 'Strict Curl', value: 'Strict Curl' },
 ];
 
 export const ArmWrestlingLifts = [
@@ -17,3 +16,11 @@ export const ArmWrestlingLifts = [
   { name: 'Wrist Curl', value: 'Wrist Curl' },
   { name: 'Supinating Press', value: 'Supinating Press' },
 ];
+
+export const IsolationLifts = [{ name: 'Strict Curl', value: 'Strict Curl' }];
+
+export const LiftingCategories = {
+  Compound: 'Compound',
+  Isolation: 'Isolation',
+  ArmWrestling: 'ArmWrestling',
+};
