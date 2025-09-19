@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import { oneRepMaxFormulas } from '../../utils/liftingUtils/formulas.js';
+import { oneRepMaxFormulas } from '../../../utils/liftingUtils/formulas.js';
 
 const formulaChoices = [
   ...Object.entries(oneRepMaxFormulas).map(([key, formula]) => ({
