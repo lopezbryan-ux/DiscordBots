@@ -1,8 +1,8 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
 
-import { CompoundLifts, ArmWrestlingLifts } from '../../utils/liftingUtils/liftChoices.js';
-import { mongoClient } from '../../index.js';
+import { CompoundLifts, ArmWrestlingLifts } from '../../../utils/liftingUtils/liftChoices.js';
+import { mongoClient } from '../../../index.js';
 
 export default {
   data: new SlashCommandBuilder()
