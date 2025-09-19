@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js';
-import { validateAmount, validateBodyweight } from '../../utils/validations.js';
-import { CompoundLifts, IsolationLifts, LiftingCategories } from '../../utils/liftChoices.js';
+import { validateAmount, validateBodyweight } from '../../utils/liftingUtils/validations.js';
+import { CompoundLifts, IsolationLifts, LiftingCategories } from '../../utils/liftingUtils/liftChoices.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
 
 import { MongoClient } from 'mongodb';

@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import { CompoundLifts, LiftingCategories } from '../../utils/liftChoices.js';
+import { CompoundLifts, LiftingCategories } from '../../utils/liftingUtils/liftChoices.js';
 import { mongoClient } from '../../index.js';
 
 export default {
