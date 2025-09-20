@@ -10,7 +10,7 @@ export default {
     .setDescription('Log a cardio activity')
     .addStringOption((option) =>
       option
-        .setName('cardio_type')
+        .setName('cardiotype')
         .setDescription('Type of cardio')
         .setRequired(true)
         .addChoices(...CardioChoices),
