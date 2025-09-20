@@ -17,14 +17,26 @@ export default {
       return;
     }
 
-    // Format logs for display
-    const formatted = logs
-      .map((log) => {
-        const type = log.cardioType === 'run' ? 'Run' : log.cardioType === 'bike' ? 'Bike' : log.cardioType;
-        return `${type}: ${log.time} @ ${log.bodyweight}lbs on ${log.date}${log.additionaldetails ? ` (${log.additionaldetails})` : ''}`;
-      })
-      .join('\n');
+    // Format logs as embed fields
+    const embedFields = logs.map((log) => {
+      const type = log.cardioType === 'run' ? 'Run' : log.cardioType === 'bike' ? 'Bike' : log.cardioType;
+      let value = `**Time:** ${log.time}\n**Distance:** ${log.distance} miles\n**Bodyweight:** ${log.bodyweight} lbs\n**Date:** ${log.date}`;
+      if (log.additionaldetails) value += `\n**Details:** ${log.additionaldetails}`;
+      return {
+        name: `ID: ${log._id} | ${type}`,
+        value,
+        inline: false,
+      };
+    });
 
-    await interaction.reply(`Your Cardio Logs:\n${formatted}`);
+    await interaction.reply({
+      embeds: [
+        {
+          title: 'Your Cardio Logs',
+          color: 0x1abc9c,
+          fields: embedFields,
+        },
+      ],
+    });
   },
 };
