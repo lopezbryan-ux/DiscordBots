@@ -68,21 +68,37 @@ export default {
         return `${paceMin}:${paceSec.toString().padStart(2, '0')}`;
       }
 
-      let replyMsg = '';
+      let embedTitle = '';
+      let embedFields = [];
+      let embedColor = cardioType === 'run' ? 0x1abc9c : 0x3498db;
+      const milePace = calcMilePace(time, distance);
       if (cardioType === 'run') {
-        const milePace = calcMilePace(time, distance);
-        replyMsg = `Logged: Run - ${distance} miles in ${time} @ ${bodyweight}lbs on ${date} | Mile Pace: ${milePace} per mile`;
+        embedTitle = '🏃 Run Logged';
       } else if (cardioType === 'bike') {
-        const milePace = calcMilePace(time, distance);
-        replyMsg = `Logged: Bike - ${distance} miles in ${time} @ ${bodyweight}lbs on ${date} | Mile Pace: ${milePace} per mile`;
+        embedTitle = '🚴 Bike Logged';
+      } else {
+        embedTitle = 'Cardio Log Saved';
       }
-      if (additionaldetails) replyMsg += ` (${additionaldetails})`;
-
-      if (!replyMsg) replyMsg = 'Cardio log saved.';
-      await interaction.editReply(replyMsg);
+      embedFields = [
+        { name: 'Distance', value: `${distance} miles`, inline: true },
+        { name: 'Time', value: time, inline: true },
+        { name: 'Bodyweight', value: `${bodyweight} lbs`, inline: true },
+        { name: 'Date', value: date, inline: true },
+        { name: 'Mile Pace', value: `${milePace} per mile`, inline: true },
+      ];
+      if (additionaldetails) {
+        embedFields.push({ name: 'Details', value: additionaldetails, inline: false });
+      }
+      await interaction.editReply({
+        embeds: [{
+          title: embedTitle,
+          color: embedColor,
+          fields: embedFields,
+        }],
+      });
     } catch (err) {
       console.error('Error in logCardio command:', err);
-      await interaction.editReply('There was an error while executing this command!');
+      await interaction.editReply(`There was an error while executing this command!\nError: ${err instanceof Error ? err.message : String(err)}`);
     }
   },
 };
