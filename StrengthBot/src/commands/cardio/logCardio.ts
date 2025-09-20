@@ -25,7 +25,7 @@ export default {
       const chatInteraction = interaction as ChatInputCommandInteraction;
       const username = chatInteraction.user.username;
       const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-      const cardioType = chatInteraction.options.getString('cardio_type', true);
+      const cardioType = chatInteraction.options.getString('cardiotype', true);
       const time = chatInteraction.options.getString('time', true);
       const timeError = !ValidateTime(time);
       if (timeError) {
@@ -98,7 +98,7 @@ export default {
       });
     } catch (err) {
       console.error('Error in logCardio command:', err);
-      await interaction.editReply(`There was an error while executing this command!\nError: ${err instanceof Error ? err.message : String(err)}`);
+      await interaction.editReply(`There was an error while executing this comman123d!\nError: ${err instanceof Error ? err.message : String(err)}`);
     }
   },
 };
