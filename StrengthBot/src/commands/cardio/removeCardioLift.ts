@@ -16,15 +16,20 @@ export default {
     const db = mongoClient.db('StrengthBotDb');
     const cardioCollection = db.collection('StrengthBotCardioCollection');
     let result;
+    let removedLog;
     try {
+      removedLog = await cardioCollection.findOne({ _id: new ObjectId(id), username });
       result = await cardioCollection.deleteOne({ _id: new ObjectId(id), username });
     } catch (err) {
       await interaction.reply('Invalid ID format.');
       return;
     }
 
-    if (result.deletedCount === 1) {
-      await interaction.reply(`Removed your cardio log with ID ${id}.`);
+    if (result.deletedCount === 1 && removedLog) {
+      let details = `Type: ${removedLog.cardioType}\nTime: ${removedLog.time}\nDistance: ${removedLog.distance} miles\nBodyweight: ${removedLog.bodyweight} lbs\nDate: ${removedLog.date}`;
+      if (removedLog.additionaldetails) details += `\nDetails: ${removedLog.additionaldetails}`;
+      await interaction.reply(`Removed your cardio log with ID ${id}:
+${details}`);
     } else {
       await interaction.reply(`No cardio log found with ID ${id}.`);
     }
