@@ -58,5 +58,5 @@ export interface QuickChartDataSource {
 
 export interface QuickChartConfig {
   columns: QuickChartColumn[];
-  dataSource: QuickChartDataSource[];
+  dataSource: any[];
 }

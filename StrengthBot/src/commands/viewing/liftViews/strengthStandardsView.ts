@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
-import { strengthStandards, StrengthLevel, QuickChartConfig } from '../../../utils/liftingUtils/strengthStandards.js';
+import { strengthStandards, StrengthLevel, QuickChartConfig, strengthStandardsColumns } from '../../../utils/liftingUtils/strengthStandards.js';
 
 export default {
   data: new SlashCommandBuilder().setName('strengthstandards').setDescription('View strength standards for squat, bench, and deadlift'),
@@ -14,15 +14,8 @@ export default {
 
     // QuickChart API payload
     const quickChartConfig: QuickChartConfig = {
-      columns: [
-        { title: '', dataIndex: 'lift' },
-        { title: 'Beginner', dataIndex: 'beginner' },
-        { title: 'Intermediate', dataIndex: 'intermediate' },
-        { title: 'Advanced', dataIndex: 'advanced' },
-        { title: 'Elite', dataIndex: 'elite' },
-        { title: 'Freak', dataIndex: 'freak' },
-      ],
-      dataSource: strengthStandards,
+      columns: strengthStandardsColumns,
+      dataSource: ['-', strengthStandards[0], strengthStandards[1], strengthStandards[2]],
     };
 
     const quickChartUrl = `https://api.quickchart.io/v1/table?data=${encodeURIComponent(JSON.stringify(quickChartConfig))}`;
