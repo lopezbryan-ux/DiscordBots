@@ -55,7 +55,10 @@ export default {
       function getStrengthLevel(lift: string, ratio: number): string {
         // Find the standards object for the lift
         const standards = strengthStandards.find((s) => s.lift.toLowerCase() === lift.toLowerCase());
-        console.log('Standards for', lift, standards);
+        if (!standards) {
+          interaction.reply({ content: `Debug: No standards found for ${lift}` });
+          return 'Unknown';
+        }
         if (!standards) return 'Unknown';
         for (const level of levels) {
           // The key in standards is always lowercase
@@ -80,11 +83,11 @@ export default {
         }
         return 'Below Beginner';
       }
-
+      const typeForSuqatRatio = typeof squatRatio;
       // Build summary string with level
-      const squatLevel = typeof squatRatio === 'string' ? 'Unknown' : getStrengthLevel('Squat', Number(squatRatio));
-      const benchLevel = typeof benchRatio === 'string' ? 'Unknown' : getStrengthLevel('Bench', Number(benchRatio));
-      const deadliftLevel = typeof deadliftRatio === 'string' ? 'Unknown' : getStrengthLevel('Deadlift', Number(deadliftRatio));
+      const squatLevel = typeof squatRatio !== 'string' ? 'Unknown' : getStrengthLevel('Squat', Number(squatRatio));
+      const benchLevel = typeof benchRatio !== 'string' ? 'Unknown' : getStrengthLevel('Bench', Number(benchRatio));
+      const deadliftLevel = typeof deadliftRatio !== 'string' ? 'Unknown' : getStrengthLevel('Deadlift', Number(deadliftRatio));
 
       let summary = `\n`;
       summary += `Barbell Squat: **${squatMax} lbs** (${squatRatio}x BW) — **${squatLevel}**\n`;
