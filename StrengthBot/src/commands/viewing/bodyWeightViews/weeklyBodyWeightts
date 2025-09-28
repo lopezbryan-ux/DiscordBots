@@ -49,8 +49,8 @@ export default {
             label: 'Weekly Avg Body Weight',
             data: weekAverages.map((w) => Number(w.avg)),
             fill: false,
-            borderColor: 'rgb(52, 152, 219)',
-            backgroundColor: 'rgb(52, 152, 219)',
+            borderColor: '#000000',
+            backgroundColor: '#000000',
             tension: 0.2,
           },
         ],
@@ -73,10 +73,9 @@ export default {
           },
         },
       },
-      backgroundColor: 'white',
     };
 
-    const chartUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
+    const chartUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}&backgroundColor=white`;
 
     // Build embed with chart image
     const embed = new EmbedBuilder()
