@@ -18,7 +18,7 @@ export default {
     const embed = new EmbedBuilder().setTitle('Your Logged Body Weights').setColor(0x3498db).setDescription(`User: **${username}**`);
 
     logs.forEach((log) => {
-      let value = `**Bodyweight:** ${log.bodyweight} lbs\n**Date:** ${log.date}`;
+      let value = `**ID:** ${log._id}\n**Bodyweight:** ${log.bodyweight} lbs\n**Date:** ${log.date}`;
       if (log.additionaldetails) value += `\n**Details:** ${log.additionaldetails}`;
       embed.addFields({
         name: '\u200B',
