@@ -83,8 +83,8 @@ export default {
       const deadliftLevel = typeof deadliftRatio !== 'string' ? 'Unknown' : getStrengthLevel('Deadlift', Number(deadliftRatio));
 
       let summary = `\n`;
-      summary += `Barbell Squat: **${squatMax} lbs** (${squatRatio}x BW) — **${squatLevel}**\n`;
       summary += `Barbell Bench: **${benchMax} lbs** (${benchRatio}x BW) — **${benchLevel}**\n`;
+      summary += `Barbell Squat: **${squatMax} lbs** (${squatRatio}x BW) — **${squatLevel}**\n`;
       summary += `Barbell Deadlift: **${deadliftMax} lbs** (${deadliftRatio}x BW) — **${deadliftLevel}**`;
 
       // Add the summary as a field to the embed
