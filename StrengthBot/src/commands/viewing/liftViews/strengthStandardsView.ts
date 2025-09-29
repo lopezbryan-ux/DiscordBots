@@ -85,7 +85,9 @@ export default {
       let summary = `\n`;
       summary += `Barbell Bench: **${benchMax} lbs** (${benchRatio}x BW) — **${benchLevel}**\n`;
       summary += `Barbell Squat: **${squatMax} lbs** (${squatRatio}x BW) — **${squatLevel}**\n`;
-      summary += `Barbell Deadlift: **${deadliftMax} lbs** (${deadliftRatio}x BW) — **${deadliftLevel}**`;
+      summary += `Barbell Deadlift: **${deadliftMax} lbs** (${deadliftRatio}x BW) — **${deadliftLevel}**\n`;
+      const total = benchMax + squatMax + deadliftMax;
+      summary += `\n**Total (Bench + Squat + Deadlift): ${total} lbs**`;
 
       // Add the summary as a field to the embed
       embed.addFields({ name: 'Your All Time Maxes, Ratios & Level', value: summary, inline: false });
