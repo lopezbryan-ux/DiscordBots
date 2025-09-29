@@ -13,17 +13,24 @@ export default {
     .setName('bmicalculator')
     .setDescription('Calculate your BMI (Body Mass Index)')
     .addNumberOption((option) => option.setName('weight').setDescription('Your weight in pounds (lbs)').setRequired(true))
-    .addNumberOption((option) => option.setName('height').setDescription('Your height in inches').setRequired(true)),
+    .addIntegerOption((option) => option.setName('heightft').setDescription('Your height (feet)').setRequired(true))
+    .addNumberOption((option) => option.setName('heightin').setDescription('Your height (inches)').setRequired(true)),
   async execute(interaction: CommandInteraction<CacheType>) {
     const chatInteraction = interaction as ChatInputCommandInteraction;
     const weight = chatInteraction.options.getNumber('weight', true);
-    const height = chatInteraction.options.getNumber('height', true);
-    if (weight <= 0 || height <= 0) {
+    const heightFt = chatInteraction.options.getInteger('heightft', true);
+    const heightIn = chatInteraction.options.getNumber('heightin', true);
+    if (weight <= 0 || heightFt < 0 || heightIn < 0) {
       await interaction.reply('Please enter valid weight and height values.');
       return;
     }
+    const totalInches = heightFt * 12 + heightIn;
+    if (totalInches <= 0) {
+      await interaction.reply('Height must be greater than 0.');
+      return;
+    }
     // BMI formula for imperial units: (weight in lbs / (height in inches)^2) * 703
-    const bmi = (weight / (height * height)) * 703;
+    const bmi = (weight / (totalInches * totalInches)) * 703;
     const bmiRounded = bmi.toFixed(2);
     const category = getBmiCategory(bmi);
 
@@ -41,7 +48,7 @@ export default {
       .setColor(0x8e44ad)
       .addFields(
         { name: 'Weight', value: `${weight} lbs`, inline: true },
-        { name: 'Height', value: `${height} in`, inline: true },
+        { name: 'Height', value: `${heightFt} ft ${heightIn} in (${totalInches} in)`, inline: true },
         { name: 'BMI', value: `${bmiRounded}`, inline: true },
         { name: 'Category', value: category, inline: false },
         { name: 'BMI Ranges', value: rangesTable, inline: false },
