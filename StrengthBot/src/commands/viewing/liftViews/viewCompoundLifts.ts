@@ -41,36 +41,28 @@ export default {
       .toArray();
 
     const exerciseFilter = chatInteraction.options.getString('exercise');
-    const sortOption = chatInteraction.options.getString('sort');
-    if (exerciseFilter) {
-      userLogs = userLogs.filter((entry) => entry.exercise === exerciseFilter);
-    }
-    if (sortOption) {
-      if (sortOption === 'amount-desc') {
-        userLogs = userLogs.sort((a, b) => b.amount - a.amount);
-      } else if (sortOption === 'amount-asc') {
-        userLogs = userLogs.sort((a, b) => a.amount - b.amount);
-      } else if (sortOption === 'bodyweight-desc') {
-        userLogs = userLogs.sort((a, b) => b.bodyweight - a.bodyweight);
-      } else if (sortOption === 'bodyweight-asc') {
-        userLogs = userLogs.sort((a, b) => a.bodyweight - b.bodyweight);
-      } else if (sortOption === 'date-desc') {
-        userLogs = userLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      } else if (sortOption === 'date-asc') {
-        userLogs = userLogs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    // Only show the heaviest achieved lift for each exercise
+    let heaviestByExercise: Record<string, any> = {};
+    userLogs.forEach((entry) => {
+      if (!heaviestByExercise[entry.exercise] || entry.amount > heaviestByExercise[entry.exercise].amount) {
+        heaviestByExercise[entry.exercise] = entry;
       }
+    });
+    let displayLogs = Object.values(heaviestByExercise);
+    if (exerciseFilter) {
+      displayLogs = displayLogs.filter((entry) => entry.exercise === exerciseFilter);
     }
-    if (userLogs.length === 0) {
+    if (displayLogs.length === 0) {
       const exerciseMsg = exerciseFilter ? ` for exercise **${exerciseFilter}**` : '';
       await interaction.reply(`No compound lifts logged yet${exerciseMsg}.`);
       return;
     }
     const embed = new EmbedBuilder()
-      .setTitle(`Your Logged Compound Lifts (${exerciseFilter || 'All Exercises'})`)
+      .setTitle(`Your Heaviest Compound Lifts (${exerciseFilter || 'All Exercises'})`)
       .setColor(0x009688)
-      .setDescription(`Sorted by: ${sortOption || 'None'} | User: ${username}`);
+      .setDescription(`User: ${username}`);
 
-    userLogs.forEach((entry: any) => {
+    displayLogs.forEach((entry: any) => {
       const dateOnly = entry.date.split('T')[0] || entry.date;
       let name = `─────────────\n🏋️ **${entry.exercise.toUpperCase()}** (ID: ${entry._id})`;
       let value = `**Amount:** ${entry.amount} lbs\n` + `**Bodyweight:** ${entry.bodyweight} lbs\n` + `**Date:** ${dateOnly}`;
