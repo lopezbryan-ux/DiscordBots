@@ -44,6 +44,16 @@ export default {
     const ffmi = calculateFFMI(weight, totalInches, bodyFat);
     const ffmiRounded = ffmi.toFixed(2);
 
+    const ffmiRanges = [
+      { range: '< 17', label: 'Below average' },
+      { range: '17 - 19', label: 'Average' },
+      { range: '20 - 21', label: 'Above average' },
+      { range: '22 - 23', label: 'Excellent' },
+      { range: '24 - 25', label: 'Superior (natural limit)' },
+      { range: '> 25', label: 'Likely enhanced (not natural)' },
+    ];
+    const rangesTable = ffmiRanges.map((r) => `**${r.label}:** ${r.range}`).join('\n');
+
     const embed = new EmbedBuilder()
       .setTitle('💪 FFMI Calculator')
       .setColor(0x27ae60)
@@ -52,6 +62,7 @@ export default {
         { name: 'Height', value: `${heightFt} ft ${heightIn} in (${totalInches} in)`, inline: true },
         { name: 'Body Fat %', value: `${bodyFat}%`, inline: true },
         { name: 'FFMI', value: `${ffmiRounded}`, inline: false },
+        { name: 'FFMI Index Values', value: rangesTable, inline: false },
       )
       .setFooter({ text: 'FFMI = Fat-Free Mass Index. 25+ is considered very high for natural athletes.' });
 
