@@ -7,6 +7,7 @@ import { MongoClient } from 'mongodb';
 // Create a new client instance
 interface Command {
   data: { name: string };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   execute: (interaction: any) => Promise<void>;
 }
 
@@ -25,7 +26,9 @@ export { mongoClient };
 
 const TOKEN = process.env.DISCORD_TOKEN;
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] }) as ExtendedClient;
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessages],
+}) as ExtendedClient;
 
 client.commands = new Collection();
 
@@ -50,6 +53,7 @@ function getAllCommandFiles(dir: string): string[] {
 
   for (const filePath of commandFiles) {
     const commandModule = await import(pathToFileURL(filePath).href);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const command = Object.values(commandModule).find((cmd: any) => cmd && 'data' in cmd && 'execute' in cmd);
     if (command) {
       client.commands.set((command as Command).data.name, command as Command);
@@ -84,6 +88,22 @@ function getAllCommandFiles(dir: string): string[] {
           content: 'There was an error while executing this command!',
           flags: MessageFlags.Ephemeral,
         });
+      }
+    }
+  });
+
+  // Respond when bot is mentioned (@StrengthBot)
+  client.on(Events.MessageCreate, async (message) => {
+    if (message.author.bot) return;
+    if (client.user && message.mentions.has(client.user.id)) {
+      try {
+        // Dynamically import getChatResponse
+        const { getChatResponse } = await import('./utils/aiUtils/chatProvider.js');
+        await message.channel.sendTyping();
+        const response = await getChatResponse(message.content.replace(/<@!?\d+>/, '').trim());
+        await message.reply(response ?? '❌ Sorry, StrengthBot could not process your message.');
+      } catch {
+        await message.reply('❌ Sorry, StrengthBot could not process your message.');
       }
     }
   });
