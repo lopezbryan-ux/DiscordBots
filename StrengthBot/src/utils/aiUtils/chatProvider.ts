@@ -7,7 +7,7 @@ const client = new OpenAI({
 
 export async function getChatResponse(userMessage: string) {
   const chatCompletion = await client.chat.completions.create({
-    model: 'Qwen/QwQ-32B:nebius',
+    model: 'meta-llama/Llama-3.1-8B-Instruct:nebius',
     messages: [
   { role: 'system', content: 'Reply concisely with sarcasm and humor but also be jokingly and sarcastically informative if a genuine question is asked. Limit your answer to 5 sentences at most. Keep emoji use to a minimum.' },
       { role: 'user', content: userMessage }
