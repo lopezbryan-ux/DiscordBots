@@ -9,7 +9,7 @@ export async function getChatResponse(userMessage: string) {
   const chatCompletion = await client.chat.completions.create({
     model: 'Qwen/QwQ-32B:nebius',
     messages: [
-  { role: 'system', content: 'Reply concisely, with a bit of sarcasm and humor. Limit your answer to 4 sentences max.' },
+  { role: 'system', content: 'Reply concisely, with a bit of sarcasm and humor. Limit your answer to 6 sentences max.' },
       { role: 'user', content: userMessage }
     ],
   });
