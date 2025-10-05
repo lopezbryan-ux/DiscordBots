@@ -93,20 +93,20 @@ function getAllCommandFiles(dir: string): string[] {
   });
 
   // Respond when bot is mentioned (@StrengthBot)
-  client.on(Events.MessageCreate, async (message) => {
-    if (message.author.bot) return;
-    if (client.user && message.mentions.has(client.user.id)) {
-      try {
-        // Dynamically import getChatResponse
-        const { getChatResponse } = await import('./utils/aiUtils/chatProvider.js');
-        await message.channel.sendTyping();
-        const response = await getChatResponse(message.content.replace(/<@!?\d+>/, '').trim());
-        await message.reply(response ?? '❌ Sorry, StrengthBot could not process your message.');
-      } catch {
-        await message.reply('❌ Sorry, StrengthBot could not process your message.');
-      }
-    }
-  });
+  // client.on(Events.MessageCreate, async (message) => {
+  //   if (message.author.bot) return;
+  //   if (client.user && message.mentions.has(client.user.id)) {
+  //     try {
+  //       // Dynamically import getChatResponse
+  //       const { getChatResponse } = await import('./utils/aiUtils/chatProvider.js');
+  //       await message.channel.sendTyping();
+  //       const response = await getChatResponse(message.content.replace(/<@!?\d+>/, '').trim());
+  //       await message.reply(response ?? '❌ Sorry, StrengthBot could not process your message.');
+  //     } catch {
+  //       await message.reply('❌ Sorry, StrengthBot could not process your message.');
+  //     }
+  //   }
+  // });
 
   // Log in to Discord with your client's token
   client.login(TOKEN);
