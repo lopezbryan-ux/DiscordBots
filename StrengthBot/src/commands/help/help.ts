@@ -6,11 +6,10 @@ const commands = [
   { name: '/bmicalculator', desc: 'Calculate your BMI (Body Mass Index) and see BMI ranges.' },
   { name: '/ffmi', desc: 'Calculate your Fat-Free Mass Index (FFMI) and see FFMI index values.' },
   {
-    name: '/logbodyweight, /logawlift, /logcompoundlift, /logisolationlift',
-    desc: 'Log an entry: body weight, Armwrestling lift, compound lift (bench, squat, deadlift), or isolation lift (curl, triceps, etc).',
+    name: '/logbodyweight, /logawlift, /logcompoundlift, /logisolationlift, /logcardio',
+    desc: 'Log an entry: body weight, Armwrestling lift, compound lift (bench, squat, deadlift), isolation lift (curl, triceps, etc), or cardio activity.',
   },
   { name: '/removebodyweightlog, /removecardio, /removelift', desc: 'Remove a logged entry by ID: body weight, cardio, or lift.' },
-  { name: '/logcardio', desc: 'Log a cardio activity (run, bike, etc).' },
   {
     name: '/viewbodyweight, /weeklybodyweight, /viewcardio, /viewawlifts, /viewcompoundlifts, /viewisolationlifts',
     desc: 'View your logged entries: body weight, weekly averages, cardio, armwrestling lifts, compound lifts, and isolation lifts.',
