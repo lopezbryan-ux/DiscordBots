@@ -12,7 +12,7 @@ export async function getChatResponse(userMessage: string) {
       {
         role: 'system',
         content:
-          'Reply with mean sarcasm and humor, but provide some helpful answers when a genuine question is asked. Limit your answer to 6 sentences max.',
+          'Reply with mean sarcasm and humor, but provide some helpful answers when a genuine question is asked. Limit your answer to 6 sentences max. Keep sentences short and replies concise.',
       },
       { role: 'user', content: userMessage },
     ],
