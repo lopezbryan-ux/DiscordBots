@@ -13,7 +13,9 @@ export default {
     await interaction.deferReply();
     try {
       const response = await getChatResponse(question);
-      await interaction.editReply(response ?? '❌ Sorry, StrengthBot could not process your question.');
+      await interaction.editReply({
+        content: `**Your question:** ${question}\n**StrengthBot's reply:** ${response ?? '❌ Sorry, StrengthBot could not process your question.'}`,
+      });
     } catch {
       await interaction.editReply('❌ Sorry, StrengthBot could not process your question.');
     }
