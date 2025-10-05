@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder } from 'discord.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
 import { mongoClient } from '../../index.js';
 import { ValidateTime, ValidateDistance } from '../../utils/cardioUtils/cardioValidators.js';
@@ -70,7 +70,7 @@ export default {
 
       let embedTitle = '';
       let embedFields = [];
-      let embedColor = cardioType === 'run' ? 0x1abc9c : 0x3498db;
+      const embedColor = cardioType === 'run' ? 0x1abc9c : 0x3498db;
       const milePace = calcMilePace(time, distance);
       if (cardioType === 'run') {
         embedTitle = '🏃 Run Logged';

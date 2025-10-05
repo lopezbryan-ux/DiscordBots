@@ -6,7 +6,6 @@ export default {
   data: new SlashCommandBuilder().setName('strengthstandards').setDescription('View strength standards for squat, bench, and deadlift'),
   async execute(interaction: CommandInteraction<CacheType>) {
     const levels: StrengthLevel[] = ['Beginner', 'Intermediate', 'Advanced', 'Elite', 'Freak'];
-    const lifts = Object.keys(strengthStandards);
     const embed = new EmbedBuilder()
       .setTitle('🏋️ Strength Standards')
       .setColor(0x8e44ad)
@@ -76,13 +75,12 @@ export default {
         }
         return 'Below Beginner';
       }
-      const typeForSuqatRatio = typeof squatRatio;
       // Build summary string with level
       const squatLevel = typeof squatRatio !== 'string' ? 'Unknown' : getStrengthLevel('Squat', Number(squatRatio));
       const benchLevel = typeof benchRatio !== 'string' ? 'Unknown' : getStrengthLevel('Bench', Number(benchRatio));
       const deadliftLevel = typeof deadliftRatio !== 'string' ? 'Unknown' : getStrengthLevel('Deadlift', Number(deadliftRatio));
 
-      let summary = `\n`;
+      let summary = '\n';
       summary += `Barbell Bench: **${benchMax} lbs** (${benchRatio}x BW) — **${benchLevel}**\n`;
       summary += `Barbell Squat: **${squatMax} lbs** (${squatRatio}x BW) — **${squatLevel}**\n`;
       summary += `Barbell Deadlift: **${deadliftMax} lbs** (${deadliftRatio}x BW) — **${deadliftLevel}**\n`;
@@ -94,6 +92,7 @@ export default {
 
       // Reply with the combined embed
       await interaction.reply({ embeds: [embed] });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       await interaction.reply({ content: `❌ Error fetching your maxes: ${err instanceof Error ? err.message : String(err)}` });
     }

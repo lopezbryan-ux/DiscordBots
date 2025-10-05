@@ -22,6 +22,7 @@ export default {
         return;
       }
       await bodyWeightCollection.deleteOne({ _id: new ObjectId(id), username });
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       await interaction.reply({ content: 'Invalid ID format.', flags: MessageFlags.Ephemeral });
       return;

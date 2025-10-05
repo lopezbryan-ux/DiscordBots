@@ -33,7 +33,7 @@ export default {
     const username = chatInteraction.user.username;
     const db = mongoClient.db('StrengthBotDb');
     const liftsCollection = db.collection('StrengthBotCollection');
-    let userLogs = await liftsCollection
+    const userLogs = await liftsCollection
       .find({
         username,
         liftCategory: LiftingCategories.Compound, // Only Compound lifts
@@ -42,7 +42,8 @@ export default {
 
     const exerciseFilter = chatInteraction.options.getString('exercise');
     // Only show the heaviest achieved lift for each exercise
-    let heaviestByExercise: Record<string, any> = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const heaviestByExercise: Record<string, any> = {};
     userLogs.forEach((entry) => {
       if (!heaviestByExercise[entry.exercise] || entry.amount > heaviestByExercise[entry.exercise].amount) {
         heaviestByExercise[entry.exercise] = entry;
@@ -62,9 +63,10 @@ export default {
       .setColor(0x009688)
       .setDescription(`User: ${username}`);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     displayLogs.forEach((entry: any) => {
       const dateOnly = entry.date.split('T')[0] || entry.date;
-      let name = `─────────────\n🏋️ **${entry.exercise.toUpperCase()}** (ID: ${entry._id})`;
+      const name = `─────────────\n🏋️ **${entry.exercise.toUpperCase()}** (ID: ${entry._id})`;
       let value = `**Amount:** ${entry.amount} lbs\n` + `**Bodyweight:** ${entry.bodyweight} lbs\n` + `**Date:** ${dateOnly}`;
       if (entry.additionaldetails) {
         value += `\n**Details:** ${entry.additionaldetails}`;
