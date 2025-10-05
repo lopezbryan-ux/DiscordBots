@@ -5,25 +5,20 @@ const commands = [
   { name: '/askstrengthbot', desc: 'Ask StrengthBot any fitness or strength question (AI-powered, witty and informative).' },
   { name: '/bmicalculator', desc: 'Calculate your BMI (Body Mass Index) and see BMI ranges.' },
   { name: '/ffmi', desc: 'Calculate your Fat-Free Mass Index (FFMI) and see FFMI index values.' },
-  { name: '/logbodyweight', desc: 'Log your body weight.' },
-  { name: '/removebodyweightlog', desc: 'Remove a logged body weight entry by ID.' },
-  { name: '/logcardio', desc: 'Log a cardio activity (run, bike, etc).' },
-  { name: '/removecardio', desc: 'Remove a logged cardio activity by ID.' },
   {
-    name: '/logawlift, /logcompoundlift, /logisolationlift',
-    desc: 'Log a lift: Armwrestling, compound (bench, squat, deadlift), or isolation (curl, triceps, etc).',
+    name: '/logbodyweight, /logawlift, /logcompoundlift, /logisolationlift',
+    desc: 'Log an entry: body weight, Armwrestling lift, compound lift (bench, squat, deadlift), or isolation lift (curl, triceps, etc).',
   },
-  { name: '/removelift', desc: 'Remove a logged lift by ID.' },
-  { name: '/viewbodyweight', desc: 'View your logged body weights.' },
-  { name: '/weeklybodyweight', desc: 'View your weekly average body weight (with chart).' },
-  { name: '/viewcardio', desc: 'View all your logged cardio activities.' },
+  { name: '/removebodyweightlog, /removecardio, /removelift', desc: 'Remove a logged entry by ID: body weight, cardio, or lift.' },
+  { name: '/logcardio', desc: 'Log a cardio activity (run, bike, etc).' },
+  {
+    name: '/viewbodyweight, /weeklybodyweight, /viewcardio, /viewawlifts, /viewcompoundlifts, /viewisolationlifts',
+    desc: 'View your logged entries: body weight, weekly averages, cardio, armwrestling lifts, compound lifts, and isolation lifts.',
+  },
   { name: '/leaderboard', desc: 'View lift leaderboards (most weight, best ratio).' },
   { name: '/onerepmax', desc: 'Calculate your estimated one-rep max (1RM) with various formulas.' },
   { name: '/progresschart', desc: 'Show your progress chart for a specific exercise.' },
   { name: '/strengthstandards', desc: 'View strength standards for squat, bench, and deadlift.' },
-  { name: '/viewawlifts', desc: 'View your logged Armwrestling lifts.' },
-  { name: '/viewcompoundlifts', desc: 'View your logged compound lifts.' },
-  { name: '/viewisolationlifts', desc: 'View your logged isolation lifts.' },
 ];
 
 export default {
