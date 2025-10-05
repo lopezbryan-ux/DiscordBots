@@ -9,9 +9,10 @@ const commands = [
   { name: '/removebodyweightlog', desc: 'Remove a logged body weight entry by ID.' },
   { name: '/logcardio', desc: 'Log a cardio activity (run, bike, etc).' },
   { name: '/removecardio', desc: 'Remove a logged cardio activity by ID.' },
-  { name: '/logawlift', desc: 'Log an Armwrestling lift.' },
-  { name: '/logcompoundlift', desc: 'Log a compound lift (bench, squat, deadlift, etc).' },
-  { name: '/logisolationlift', desc: 'Log an isolation lift (curl, triceps, etc).' },
+  {
+    name: '/logawlift, /logcompoundlift, /logisolationlift',
+    desc: 'Log a lift: Armwrestling, compound (bench, squat, deadlift), or isolation (curl, triceps, etc).',
+  },
   { name: '/removelift', desc: 'Remove a logged lift by ID.' },
   { name: '/viewbodyweight', desc: 'View your logged body weights.' },
   { name: '/weeklybodyweight', desc: 'View your weekly average body weight (with chart).' },
