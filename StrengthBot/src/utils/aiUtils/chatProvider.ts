@@ -17,5 +17,9 @@ export async function getChatResponse(userMessage: string) {
       { role: 'user', content: userMessage },
     ],
   });
-  return chatCompletion.choices[0].message.content;
+  let response = chatCompletion.choices[0].message.content || '';
+  // Remove any reasoning or hidden thoughts (the stuff between <think>...</think>)
+  response = response.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+  return response;
 }
