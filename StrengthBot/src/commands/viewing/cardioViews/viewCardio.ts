@@ -7,13 +7,30 @@ export default {
   async execute(interaction: CommandInteraction<CacheType>) {
     const chatInteraction = interaction as ChatInputCommandInteraction;
     const username = chatInteraction.user.username;
+    // Defer early since DB calls can take >3s and cause Unknown interaction errors
+    try {
+      await interaction.deferReply();
+    } catch (err) {
+      // If defer fails, continue — we'll attempt to reply later and handle errors
+      console.warn('deferReply failed:', err);
+    }
 
     const db = mongoClient.db('StrengthBotDb');
     const cardioCollection = db.collection('StrengthBotCardioCollection');
     const logs = await cardioCollection.find({ username }).toArray();
 
     if (!logs.length) {
-      await interaction.reply('No cardio logs found for you.');
+      try {
+        await interaction.editReply('No cardio logs found for you.');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn('editReply failed, attempting followUp:', msg);
+        try {
+          await interaction.followUp('No cardio logs found for you.');
+        } catch (e) {
+          console.error('followUp also failed:', e);
+        }
+      }
       return;
     }
 
@@ -29,14 +46,32 @@ export default {
       };
     });
 
-    await interaction.reply({
-      embeds: [
-        {
-          title: 'Your Cardio Logs',
-          color: 0x1abc9c,
-          fields: embedFields,
-        },
-      ],
-    });
+    try {
+      await interaction.editReply({
+        embeds: [
+          {
+            title: 'Your Cardio Logs',
+            color: 0x1abc9c,
+            fields: embedFields,
+          },
+        ],
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('editReply failed, attempting followUp:', msg);
+      try {
+        await interaction.followUp({
+          embeds: [
+            {
+              title: 'Your Cardio Logs',
+              color: 0x1abc9c,
+              fields: embedFields,
+            },
+          ],
+        });
+      } catch (e) {
+        console.error('followUp also failed:', e);
+      }
+    }
   },
 };
