@@ -6,37 +6,29 @@ export default {
   data: new SlashCommandBuilder()
     .setName('viewmeasurements')
     .setDescription('View logged body measurements')
-    .addUserOption((option) => option.setName('user').setDescription('User to view').setRequired(false))
-    .addIntegerOption((option) =>
-      option
-        .setName('limit')
-        .setDescription('Number of recent entries to show (max 25)')
-        .setRequired(false)
-        .setMinValue(1)
-        .setMaxValue(25)
-    ),
+    .addUserOption((option) => option.setName('user').setDescription('User to view').setRequired(false)),
 
   async execute(interaction: CommandInteraction<CacheType>) {
     const chatInteraction = interaction as ChatInputCommandInteraction;
     const targetUser = chatInteraction.options.getUser('user');
     const username = targetUser ? targetUser.username : chatInteraction.user.username;
-    const limit = chatInteraction.options.getInteger('limit') ?? 5;
 
     const db = mongoClient.db('StrengthBotDb');
     const measurementsCollection = db.collection('StrengthBotMeasurements');
 
-    const records: any[] = await measurementsCollection
-      .find({ username })
-      .sort({ date: -1 })
-      .limit(limit)
-      .toArray();
+    // Fetch all records for the user, newest first
+    const records: any[] = await measurementsCollection.find({ username }).sort({ date: -1 }).toArray();
 
     if (!records || records.length === 0) {
       await interaction.reply({ content: `No measurements found for ${username}.`, ephemeral: true });
       return;
     }
 
-    const fields = records.map((r) => {
+    // Discord embeds allow up to 25 fields — show up to 25 newest entries and note if more exist
+    const maxFields = 25;
+    const shown = records.slice(0, maxFields);
+
+    const fields = shown.map((r) => {
       const parts: string[] = [];
       if (r.bicep != null) parts.push(`Bicep: ${r.bicep} in`);
       if (r.forearm != null) parts.push(`Forearm: ${r.forearm} in`);
@@ -49,11 +41,15 @@ export default {
       return { name: r.date, value, inline: false };
     });
 
-    const embed = {
+    const embed: any = {
       title: `Measurements — ${username}`,
       color: 0x3498db,
       fields,
     };
+
+    if (records.length > maxFields) {
+      embed.footer = { text: `Showing ${fields.length} of ${records.length} entries (newest first)` };
+    }
 
     await interaction.reply({ embeds: [embed] });
   },
