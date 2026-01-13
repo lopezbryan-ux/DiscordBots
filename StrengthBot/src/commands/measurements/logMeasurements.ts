@@ -11,12 +11,7 @@ export default {
     .addNumberOption((option) => option.setName('wrist').setDescription('Wrist measurement').setRequired(false))
     .addNumberOption((option) => option.setName('chest').setDescription('Chest measurement').setRequired(false))
     .addNumberOption((option) => option.setName('quad').setDescription('Quad measurement').setRequired(false))
-    .addStringOption((option) =>
-      option.setName('unit').setDescription('Unit for measurements').setRequired(false).addChoices(
-        { name: 'inches', value: 'in' },
-        { name: 'centimeters', value: 'cm' }
-      )
-    )
+    
     .addStringOption((option) => option.setName('notes').setDescription('Additional notes').setRequired(false)),
   async execute(interaction: CommandInteraction<CacheType>) {
     const chatInteraction = interaction as ChatInputCommandInteraction;
@@ -28,7 +23,7 @@ export default {
     const wrist = chatInteraction.options.getNumber('wrist');
     const chest = chatInteraction.options.getNumber('chest');
     const quad = chatInteraction.options.getNumber('quad');
-    const unit = chatInteraction.options.getString('unit') || 'in';
+    const unit = 'in';
     const notes = chatInteraction.options.getString('notes') || '';
 
     if (bicep === null && forearm === null && wrist === null && chest === null && quad === null) {
@@ -56,7 +51,7 @@ export default {
     const fields: any[] = [
       { name: 'User', value: username, inline: true },
       { name: 'Date', value: date, inline: true },
-      { name: 'Unit', value: unit === 'in' ? 'inches' : 'centimeters', inline: true },
+      { name: 'Unit', value: 'inches', inline: true },
     ];
     if (bicep !== null) fields.push({ name: 'Bicep', value: `${bicep}`, inline: true });
     if (forearm !== null) fields.push({ name: 'Forearm', value: `${forearm}`, inline: true });
