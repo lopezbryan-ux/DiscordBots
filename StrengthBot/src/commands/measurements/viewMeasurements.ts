@@ -44,7 +44,9 @@ export default {
       if (r.chest != null) parts.push(`Chest: ${r.chest} in`);
       if (r.quad != null) parts.push(`Quad: ${r.quad} in`);
       if (r.notes) parts.push(`Notes: ${r.notes}`);
-      return { name: r.date, value: parts.join('\n') || 'No measurements', inline: false };
+      const idLine = `ID: ${r._id}`;
+      const value = `${idLine}\n${parts.join('\n') || 'No measurements'}`;
+      return { name: r.date, value, inline: false };
     });
 
     const embed = {
