@@ -48,15 +48,18 @@ export default {
 
     await measurementsCollection.insertOne(record);
 
+    const measurementLines: string[] = [];
+    if (bicep !== null) measurementLines.push(`Bicep: ${bicep} in`);
+    if (forearm !== null) measurementLines.push(`Forearm: ${forearm} in`);
+    if (wrist !== null) measurementLines.push(`Wrist: ${wrist} in`);
+    if (chest !== null) measurementLines.push(`Chest: ${chest} in`);
+    if (quad !== null) measurementLines.push(`Quad: ${quad} in`);
+
     const fields: { name: string; value: string; inline: boolean }[] = [
       { name: 'User', value: username, inline: true },
       { name: 'Date', value: date, inline: true },
+      { name: 'Measurements', value: measurementLines.length ? measurementLines.join('\n') : 'No measurements', inline: false },
     ];
-    if (bicep !== null) fields.push({ name: 'Bicep', value: `${bicep} in`, inline: true });
-    if (forearm !== null) fields.push({ name: 'Forearm', value: `${forearm} in`, inline: true });
-    if (wrist !== null) fields.push({ name: 'Wrist', value: `${wrist} in`, inline: true });
-    if (chest !== null) fields.push({ name: 'Chest', value: `${chest} in`, inline: true });
-    if (quad !== null) fields.push({ name: 'Quad', value: `${quad} in`, inline: true });
     if (notes) fields.push({ name: 'Notes', value: notes, inline: false });
 
     const embed = {

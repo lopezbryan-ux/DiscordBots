@@ -17,6 +17,7 @@ export default {
     const measurementsCollection = db.collection('StrengthBotMeasurements');
 
     // Fetch all records for the user, newest first
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const records: any[] = await measurementsCollection.find({ username }).sort({ date: -1 }).toArray();
 
     if (!records || records.length === 0) {
