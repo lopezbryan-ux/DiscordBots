@@ -51,13 +51,12 @@ export default {
     const fields: any[] = [
       { name: 'User', value: username, inline: true },
       { name: 'Date', value: date, inline: true },
-      { name: 'Unit', value: 'inches', inline: true },
     ];
-    if (bicep !== null) fields.push({ name: 'Bicep', value: `${bicep}`, inline: true });
-    if (forearm !== null) fields.push({ name: 'Forearm', value: `${forearm}`, inline: true });
-    if (wrist !== null) fields.push({ name: 'Wrist', value: `${wrist}`, inline: true });
-    if (chest !== null) fields.push({ name: 'Chest', value: `${chest}`, inline: true });
-    if (quad !== null) fields.push({ name: 'Quad', value: `${quad}`, inline: true });
+    if (bicep !== null) fields.push({ name: 'Bicep', value: `${bicep} in`, inline: true });
+    if (forearm !== null) fields.push({ name: 'Forearm', value: `${forearm} in`, inline: true });
+    if (wrist !== null) fields.push({ name: 'Wrist', value: `${wrist} in`, inline: true });
+    if (chest !== null) fields.push({ name: 'Chest', value: `${chest} in`, inline: true });
+    if (quad !== null) fields.push({ name: 'Quad', value: `${quad} in`, inline: true });
     if (notes) fields.push({ name: 'Notes', value: notes, inline: false });
 
     const embed = {
