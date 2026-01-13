@@ -48,7 +48,7 @@ export default {
 
     await measurementsCollection.insertOne(record);
 
-    const fields: any[] = [
+    const fields: { name: string; value: string; inline: boolean }[] = [
       { name: 'User', value: username, inline: true },
       { name: 'Date', value: date, inline: true },
     ];
