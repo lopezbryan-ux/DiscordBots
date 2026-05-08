@@ -12,9 +12,9 @@ export default {
   data: new SlashCommandBuilder()
     .setName('bmicalculator')
     .setDescription('Calculate your BMI (Body Mass Index)')
-    .addNumberOption((option) => option.setName('weight').setDescription('Your weight in pounds (lbs)').setRequired(true))
-    .addIntegerOption((option) => option.setName('heightft').setDescription('Your height (feet)').setRequired(true))
-    .addNumberOption((option) => option.setName('heightin').setDescription('Your height (inches)').setRequired(true)),
+    .addIntegerOption((option) => option.setName('feet').setDescription('Your height (feet)').setRequired(true))
+    .addNumberOption((option) => option.setName('inches').setDescription('Your height (inches)').setRequired(true))
+    .addNumberOption((option) => option.setName('weight').setDescription('Your weight in pounds (lbs)').setRequired(true)),
   async execute(interaction: CommandInteraction<CacheType>) {
     const chatInteraction = interaction as ChatInputCommandInteraction;
     const weight = chatInteraction.options.getNumber('weight', true);
