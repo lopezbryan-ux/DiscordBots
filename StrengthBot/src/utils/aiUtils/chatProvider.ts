@@ -7,7 +7,7 @@ const client = new OpenAI({
 
 export async function getChatResponse(userMessage: string) {
   const chatCompletion = await client.chat.completions.create({
-    model: 'deepseek-ai/DeepSeek-R1:novita',
+    model: 'deepseek-ai/DeepSeek-V4-Flash:novita',
     messages: [
       {
         role: 'system',
