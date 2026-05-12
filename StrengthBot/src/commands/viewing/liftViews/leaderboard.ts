@@ -40,7 +40,7 @@ export default {
       const db = mongoClient.db('StrengthBotDb');
       const liftsCollection = db.collection('StrengthBotCollection');
       const rawLogs = await liftsCollection.find({}).toArray();
-      let logs: LiftLogEntry[] = rawLogs.map((doc: any) => ({
+      const logs: LiftLogEntry[] = rawLogs.map((doc: any) => ({
         id: doc.id,
         username: doc.username,
         date: doc.date,
@@ -49,7 +49,6 @@ export default {
         bodyweight: doc.bodyweight,
         additionaldetails: doc.additionaldetails,
       }));
-      let leaderboard: string = '';
       // Helper to get top N unique users from a sorted array
       function getTopNUnique(sortedArr: any[], n: number) {
         const seen = new Set();

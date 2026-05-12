@@ -72,7 +72,7 @@ export default {
 
     userLogs.forEach((entry: any) => {
       const dateOnly = entry.date.split('T')[0] || entry.date;
-      let name = `─────────────\n💪 **${entry.exercise.toUpperCase()}** (ID: ${entry._id})`;
+      const name = `─────────────\n💪 **${entry.exercise.toUpperCase()}** (ID: ${entry._id})`;
       let value = `**Amount:** ${entry.amount} lbs\n` + `**Bodyweight:** ${entry.bodyweight} lbs\n` + `**Date:** ${dateOnly}`;
       if (entry.additionaldetails) {
         value += `\n**Details:** ${entry.additionaldetails}`;

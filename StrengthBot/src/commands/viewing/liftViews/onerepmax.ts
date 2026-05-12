@@ -35,7 +35,7 @@ export default {
     }
 
     if (formulaKey === 'average') {
-      const results = Object.entries(oneRepMaxFormulas).map(([key, formula]) => ({
+      const results = Object.entries(oneRepMaxFormulas).map(([, formula]) => ({
         name: formula.name,
         value: formula.calc(weight, reps),
         desc: formula.desc,
@@ -61,7 +61,7 @@ export default {
       return;
     }
 
-    let oneRepMax = formula.calc(weight, reps);
+    const oneRepMax = formula.calc(weight, reps);
 
     const embed = new EmbedBuilder()
       .setTitle(`🧮 One-Rep Max Calculator (${formula.name})`)
