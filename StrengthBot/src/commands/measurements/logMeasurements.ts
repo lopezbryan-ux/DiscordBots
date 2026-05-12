@@ -34,7 +34,17 @@ export default {
     const db = mongoClient.db('StrengthBotDb');
     const measurementsCollection = db.collection('StrengthBotMeasurements');
 
-    const record: any = {
+    const record: {
+      username: string;
+      date: string;
+      unit: string;
+      notes: string;
+      bicep?: number;
+      forearm?: number;
+      wrist?: number;
+      chest?: number;
+      quad?: number;
+    } = {
       username,
       date,
       unit,

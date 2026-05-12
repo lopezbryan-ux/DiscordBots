@@ -27,15 +27,6 @@ export default {
     const bodyweight = chatInteraction.options.getNumber('bodyweight', true);
     const additionaldetails = chatInteraction.options.getString('additionaldetails') || '';
     const liftCategory = LiftingCategories.ArmWrestling;
-    const logEntry = {
-      username,
-      date,
-      exercise,
-      amount,
-      bodyweight,
-      additionaldetails,
-      liftCategory,
-    };
 
     // Insert the lift into MongoDB using shared client
     const db = mongoClient.db('StrengthBotDb');

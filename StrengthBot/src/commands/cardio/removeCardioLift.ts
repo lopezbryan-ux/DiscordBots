@@ -21,7 +21,7 @@ export default {
       removedLog = await cardioCollection.findOne({ _id: new ObjectId(id), username });
       result = await cardioCollection.deleteOne({ _id: new ObjectId(id), username });
     } catch (err) {
-      await interaction.reply('Invalid ID format.');
+      await interaction.reply('Invalid ID format.' + { error: err });
       return;
     }
 

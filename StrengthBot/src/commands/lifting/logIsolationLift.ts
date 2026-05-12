@@ -1,9 +1,7 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { validateAmount, validateBodyweight } from '../../utils/liftingUtils/validations.js';
-import { CompoundLifts, IsolationLifts, LiftingCategories } from '../../utils/liftingUtils/liftChoices.js';
+import { IsolationLifts, LiftingCategories } from '../../utils/liftingUtils/liftChoices.js';
 import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
-
-import { MongoClient } from 'mongodb';
 import { mongoClient } from '../../index.js';
 
 export default {
@@ -39,15 +37,6 @@ export default {
     }
     const additionaldetails = chatInteraction.options.getString('additionaldetails') || '';
     const liftCategory = LiftingCategories.Isolation;
-    const logEntry = {
-      username,
-      date,
-      exercise,
-      amount,
-      bodyweight,
-      additionaldetails,
-      liftCategory,
-    };
 
     // Insert the lift into MongoDB
     const db = mongoClient.db('StrengthBotDb');
