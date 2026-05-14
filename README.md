@@ -1,10 +1,1 @@
-Make sure you are in StrengthBot Directory
-
-Set it up (figure it out)
-
-run this command to get your changes to show on discord bot
-
-`npm run cleanrun`
-
-
-Note: Ask for the .env and .json files to get access to tokens and db.
+StrengthBot is a self-hosted Discord fitness tracking bot designed to help users log workouts, track progression, and receive AI-powered fitness insights directly through Discord. The project was built using TypeScript, Discord.js, MongoDB, and external REST APIs, with the application hosted on a Raspberry Pi for continuous availability and remote access.
