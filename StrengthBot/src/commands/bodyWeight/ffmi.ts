@@ -26,35 +26,13 @@ export default {
   data: new SlashCommandBuilder()
     .setName('ffmi')
     .setDescription('Calculate your Fat-Free Mass Index (FFMI)')
+    .addNumberOption((option) => option.setName('weight').setDescription('Your weight in pounds (lbs)').setMinValue(1).setRequired(true))
+    .addIntegerOption((option) => option.setName('heightft').setDescription('Your height (feet)').setMinValue(0).setRequired(true))
     .addNumberOption((option) =>
-      option
-        .setName('weight')
-        .setDescription('Your weight in pounds (lbs)')
-        .setMinValue(1)
-        .setRequired(true),
-    )
-    .addIntegerOption((option) =>
-      option
-        .setName('heightft')
-        .setDescription('Your height (feet)')
-        .setMinValue(0)
-        .setRequired(true),
+      option.setName('heightin').setDescription('Your remaining height in inches').setMinValue(0).setMaxValue(11.99).setRequired(true),
     )
     .addNumberOption((option) =>
-      option
-        .setName('heightin')
-        .setDescription('Your remaining height in inches')
-        .setMinValue(0)
-        .setMaxValue(11.99)
-        .setRequired(true),
-    )
-    .addNumberOption((option) =>
-      option
-        .setName('bodyfat')
-        .setDescription('Your body fat percentage (e.g. 15)')
-        .setMinValue(0)
-        .setMaxValue(100)
-        .setRequired(true),
+      option.setName('bodyfat').setDescription('Your body fat percentage (e.g. 15)').setMinValue(0).setMaxValue(100).setRequired(true),
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {

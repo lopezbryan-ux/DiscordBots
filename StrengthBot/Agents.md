@@ -23,7 +23,7 @@ StrengthBot is a Node.js/TypeScript Discord bot. Source code lives in `src`, com
 - Prefer focused changes over broad refactors.
 - Keep generated files in `dist` out of manual edits; update source files in `src` instead.
 - Add or update tests when changing behavior, if the project has a test harness.
-- Make sure to format document using prettier
+- Run the prettier script after you finish making your changes
 
 ## Git Hygiene
 
