@@ -1,8 +1,48 @@
-import { SlashCommandBuilder } from 'discord.js';
-import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { mongoClient } from '../../index.js';
-import { ValidateTime, ValidateDistance } from '../../utils/cardioUtils/cardioValidators.js';
 import { CardioChoices } from '../../utils/cardioUtils/cardioChoices.js';
+import { ValidateDistance, ValidateTime } from '../../utils/cardioUtils/cardioValidators.js';
+
+const DATABASE_NAME = 'StrengthBotDb';
+const CARDIO_COLLECTION = 'StrengthBotCardioCollection';
+const LOG_CATEGORY = 'Cardio';
+const RUN_COLOR = 0x1abc9c;
+const DEFAULT_COLOR = 0x3498db;
+const SECONDS_PER_MINUTE = 60;
+const MAX_DETAILS_LENGTH = 1000;
+const MAX_TIME_LENGTH = 5;
+
+interface CardioLog {
+  username: string;
+  date: string;
+  cardioType: string;
+  time: string;
+  distance: number;
+  bodyweight: number;
+  additionaldetails: string;
+  logCategory: string;
+}
+
+function calculateMilePace(time: string, distance: number): string {
+  const [minutes, seconds] = time.split(':').map(Number);
+
+  if (Number.isNaN(minutes) || Number.isNaN(seconds) || distance <= 0) {
+    return 'N/A';
+  }
+
+  const totalSeconds = minutes * SECONDS_PER_MINUTE + seconds;
+  const paceSeconds = totalSeconds / distance;
+  const paceMinutes = Math.floor(paceSeconds / SECONDS_PER_MINUTE);
+  const paceRemainingSeconds = Math.round(paceSeconds % SECONDS_PER_MINUTE);
+
+  return `${paceMinutes}:${paceRemainingSeconds.toString().padStart(2, '0')}`;
+}
+
+function getEmbedTitle(cardioType: string): string {
+  if (cardioType === 'run') return 'Run Logged';
+  if (cardioType === 'bike') return 'Bike Logged';
+  return 'Cardio Log Saved';
+}
 
 export default {
   data: new SlashCommandBuilder()
@@ -15,37 +55,41 @@ export default {
         .setRequired(true)
         .addChoices(...CardioChoices),
     )
-    .addNumberOption((option) => option.setName('bodyweight').setDescription('Your body weight (lbs)').setRequired(true))
-    .addStringOption((option) => option.setName('time').setDescription('Time (mm:ss)').setRequired(true))
-    .addNumberOption((option) => option.setName('distance').setDescription('Distance (miles)').setRequired(true))
-    .addStringOption((option) => option.setName('additionaldetails').setDescription('Additional details (optional)').setRequired(false)),
-  async execute(interaction: CommandInteraction<CacheType>) {
+    .addNumberOption((option) => option.setName('bodyweight').setDescription('Your body weight (lbs)').setMinValue(1).setRequired(true))
+    .addStringOption((option) => option.setName('time').setDescription('Time (mm:ss)').setMaxLength(MAX_TIME_LENGTH).setRequired(true))
+    .addNumberOption((option) => option.setName('distance').setDescription('Distance (miles)').setMinValue(0.01).setRequired(true))
+    .addStringOption((option) =>
+      option.setName('additionaldetails').setDescription('Additional details (optional)').setMaxLength(MAX_DETAILS_LENGTH).setRequired(false),
+    ),
+
+  async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
+
     try {
-      const chatInteraction = interaction as ChatInputCommandInteraction;
-      const username = chatInteraction.user.username;
-      const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-      const cardioType = chatInteraction.options.getString('cardiotype', true);
-      const time = chatInteraction.options.getString('time', true);
-      const timeError = !ValidateTime(time);
-      if (timeError) {
+      const username = interaction.user.username;
+      const date = new Date().toISOString().slice(0, 10);
+      const cardioType = interaction.options.getString('cardiotype', true);
+      const time = interaction.options.getString('time', true);
+      const bodyweight = interaction.options.getNumber('bodyweight', true);
+      const distance = interaction.options.getNumber('distance', true);
+      const additionaldetails = interaction.options.getString('additionaldetails')?.trim() || '';
+
+      if (!ValidateTime(time)) {
         await interaction.editReply('Please enter time in MM:SS format (e.g., 07:45).');
         return;
       }
-      const bodyweight = chatInteraction.options.getNumber('bodyweight', true);
-      const distance = chatInteraction.options.getNumber('distance', true);
-      const additionaldetails = chatInteraction.options.getString('additionaldetails') || '';
-      const logCategory = 'Cardio';
 
-      // Validate distance
+      if (bodyweight <= 0) {
+        await interaction.editReply('Please enter a valid body weight.');
+        return;
+      }
+
       if (!ValidateDistance(distance)) {
         await interaction.editReply('Please enter a valid distance greater than 0.');
         return;
       }
 
-      // Insert the cardio log into MongoDB
-      const db = mongoClient.db('StrengthBotDb');
-      const cardioCollection = db.collection('StrengthBotCardioCollection');
+      const cardioCollection = mongoClient.db(DATABASE_NAME).collection<CardioLog>(CARDIO_COLLECTION);
       await cardioCollection.insertOne({
         username,
         date,
@@ -54,51 +98,29 @@ export default {
         distance,
         bodyweight,
         additionaldetails,
-        logCategory,
+        logCategory: LOG_CATEGORY,
       });
 
-      // Calculate mile pace (mm:ss per mile)
-      function calcMilePace(timeStr: string, dist: number): string {
-        const [min, sec] = timeStr.split(':').map(Number);
-        if (isNaN(min) || isNaN(sec) || dist <= 0) return 'N/A';
-        const totalSeconds = min * 60 + sec;
-        const paceSeconds = totalSeconds / dist;
-        const paceMin = Math.floor(paceSeconds / 60);
-        const paceSec = Math.round(paceSeconds % 60);
-        return `${paceMin}:${paceSec.toString().padStart(2, '0')}`;
-      }
+      const milePace = calculateMilePace(time, distance);
+      const embed = new EmbedBuilder()
+        .setTitle(getEmbedTitle(cardioType))
+        .setColor(cardioType === 'run' ? RUN_COLOR : DEFAULT_COLOR)
+        .addFields(
+          { name: 'Distance', value: `${distance} miles`, inline: true },
+          { name: 'Time', value: time, inline: true },
+          { name: 'Bodyweight', value: `${bodyweight} lbs`, inline: true },
+          { name: 'Date', value: date, inline: true },
+          { name: 'Mile Pace', value: `${milePace} per mile`, inline: true },
+        );
 
-      let embedTitle = '';
-      let embedFields = [];
-      const embedColor = cardioType === 'run' ? 0x1abc9c : 0x3498db;
-      const milePace = calcMilePace(time, distance);
-      if (cardioType === 'run') {
-        embedTitle = '🏃 Run Logged';
-      } else if (cardioType === 'bike') {
-        embedTitle = '🚴 Bike Logged';
-      } else {
-        embedTitle = 'Cardio Log Saved';
-      }
-      embedFields = [
-        { name: 'Distance', value: `${distance} miles`, inline: true },
-        { name: 'Time', value: time, inline: true },
-        { name: 'Bodyweight', value: `${bodyweight} lbs`, inline: true },
-        { name: 'Date', value: date, inline: true },
-        { name: 'Mile Pace', value: `${milePace} per mile`, inline: true },
-      ];
       if (additionaldetails) {
-        embedFields.push({ name: 'Details', value: additionaldetails, inline: false });
+        embed.addFields({ name: 'Details', value: additionaldetails, inline: false });
       }
-      await interaction.editReply({
-        embeds: [{
-          title: embedTitle,
-          color: embedColor,
-          fields: embedFields,
-        }],
-      });
+
+      await interaction.editReply({ embeds: [embed] });
     } catch (err) {
       console.error('Error in logCardio command:', err);
-      await interaction.editReply(`There was an error while executing this comman123d!\nError: ${err instanceof Error ? err.message : String(err)}`);
+      await interaction.editReply('There was an error while executing this command.');
     }
   },
 };
