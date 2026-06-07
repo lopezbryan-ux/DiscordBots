@@ -1,5 +1,9 @@
 import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 
+const INCHES_PER_FOOT = 12;
+const BMI_IMPERIAL_FACTOR = 703;
+const EMBED_COLOR = 0x8e44ad;
+
 const BMI_RANGES = [
   { range: '< 18.5', label: 'Underweight' },
   { range: '18.5 - 24.9', label: 'Normal weight' },
@@ -14,38 +18,44 @@ function getBmiCategory(bmi: number): string {
   return 'Obese';
 }
 
+function calculateBmi(weight: number, totalInches: number): number {
+  return (weight / (totalInches * totalInches)) * BMI_IMPERIAL_FACTOR;
+}
+
 export default {
   data: new SlashCommandBuilder()
     .setName('bmicalculator')
     .setDescription('Calculate your BMI (Body Mass Index)')
-    .addIntegerOption((option) => option.setName('feet').setDescription('Your height (feet)').setRequired(true))
-    .addNumberOption((option) => option.setName('inches').setDescription('Your height (inches)').setRequired(true))
-    .addNumberOption((option) => option.setName('weight').setDescription('Your weight in pounds (lbs)').setRequired(true)),
+    .addIntegerOption((option) => option.setName('feet').setDescription('Your height (feet)').setMinValue(0).setRequired(true))
+    .addNumberOption((option) =>
+      option.setName('inches').setDescription('Your remaining height in inches').setMinValue(0).setMaxValue(11.99).setRequired(true),
+    )
+    .addNumberOption((option) => option.setName('weight').setDescription('Your weight in pounds (lbs)').setMinValue(1).setRequired(true)),
 
   async execute(interaction: ChatInputCommandInteraction) {
     const heightFt = interaction.options.getInteger('feet', true);
     const heightIn = interaction.options.getNumber('inches', true);
     const weight = interaction.options.getNumber('weight', true);
 
-    if (weight <= 0 || heightFt < 0 || heightIn < 0 || heightIn >= 12) {
+    if (weight <= 0 || heightFt < 0 || heightIn < 0 || heightIn >= INCHES_PER_FOOT) {
       await interaction.reply('Please enter valid weight and height values. Inches should be between 0 and 11.99.');
       return;
     }
 
-    const totalInches = heightFt * 12 + heightIn;
+    const totalInches = heightFt * INCHES_PER_FOOT + heightIn;
     if (totalInches <= 0) {
       await interaction.reply('Height must be greater than 0.');
       return;
     }
 
-    const bmi = (weight / (totalInches * totalInches)) * 703;
+    const bmi = calculateBmi(weight, totalInches);
     const bmiRounded = bmi.toFixed(2);
     const category = getBmiCategory(bmi);
-    const rangesTable = BMI_RANGES.map((r) => `**${r.label}:** ${r.range}`).join('\n');
+    const rangesTable = BMI_RANGES.map((range) => `**${range.label}:** ${range.range}`).join('\n');
 
     const embed = new EmbedBuilder()
-      .setTitle('🧮 BMI Calculator')
-      .setColor(0x8e44ad)
+      .setTitle('BMI Calculator')
+      .setColor(EMBED_COLOR)
       .addFields(
         { name: 'Height', value: `${heightFt} ft ${heightIn} in (${totalInches} in)`, inline: true },
         { name: 'Weight', value: `${weight} lbs`, inline: true },
