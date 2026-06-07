@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { mongoClient } from '../../../index.js';
 import { QuickChartConfig, strengthStandards, strengthStandardsColumns, StrengthLevel } from '../../../utils/liftingUtils/strengthStandards.js';
-import { DATABASE_NAME, LiftLog, LIFTS_COLLECTION } from '../viewHelpers.js';
+import { DATABASE_NAME, LiftLog, LIFTS_COLLECTION } from '../../../utils/viewingUtils/viewHelpers.js';
 
 const EMBED_COLOR = 0x8e44ad;
 const LEVELS: StrengthLevel[] = ['Beginner', 'Intermediate', 'Advanced', 'Elite', 'Freak'];

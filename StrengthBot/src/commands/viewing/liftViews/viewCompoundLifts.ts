@@ -10,7 +10,7 @@ import {
   liftSortChoices,
   MAX_EMBED_FIELDS,
   sortLiftLogs,
-} from '../viewHelpers.js';
+} from '../../../utils/viewingUtils/viewHelpers.js';
 
 const EMBED_COLOR = 0x009688;
 

@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { mongoClient } from '../../../index.js';
 import { ArmWrestlingLifts, CompoundLifts } from '../../../utils/liftingUtils/liftChoices.js';
-import { DATABASE_NAME, LiftLog, LIFTS_COLLECTION } from '../viewHelpers.js';
+import { DATABASE_NAME, LiftLog, LIFTS_COLLECTION } from '../../../utils/viewingUtils/viewHelpers.js';
 
 const WEIGHT_COLOR = 0xffd700;
 const RATIO_COLOR = 0x00bfff;

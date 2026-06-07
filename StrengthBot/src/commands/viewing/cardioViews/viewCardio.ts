@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { mongoClient } from '../../../index.js';
-import { CARDIO_COLLECTION, CardioLog, DATABASE_NAME, MAX_EMBED_FIELDS } from '../viewHelpers.js';
+import { CARDIO_COLLECTION, CardioLog, DATABASE_NAME, MAX_EMBED_FIELDS } from '../../../utils/viewingUtils/viewHelpers.js';
 
 const EMBED_COLOR = 0x1abc9c;
 

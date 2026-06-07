@@ -10,8 +10,13 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const commands: any[] = [];
+interface DeployableCommand {
+  data: {
+    toJSON: () => unknown;
+  };
+}
+
+const commands: unknown[] = [];
 
 function getAllCommandFiles(dir: string): string[] {
   let results: string[] = [];
@@ -28,14 +33,21 @@ function getAllCommandFiles(dir: string): string[] {
   return results;
 }
 
+function isDeployableCommand(value: unknown): value is DeployableCommand {
+  if (typeof value !== 'object' || value === null || !('data' in value)) return false;
+
+  const data = (value as { data?: { toJSON?: unknown } }).data;
+  return typeof data?.toJSON === 'function';
+}
+
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = getAllCommandFiles(commandsPath);
 
 async function loadCommands() {
   for (const filePath of commandFiles) {
     const commandModule = await import(pathToFileURL(filePath).href);
-    const command = commandModule.default || Object.values(commandModule)[0];
-    if (command && command.data) {
+    const command = [commandModule.default, ...Object.values(commandModule)].find(isDeployableCommand);
+    if (command) {
       commands.push(command.data.toJSON());
     }
   }

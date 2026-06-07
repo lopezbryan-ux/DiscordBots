@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { mongoClient } from '../../../index.js';
-import { BODY_WEIGHT_COLLECTION, BodyWeightLog, DATABASE_NAME } from '../viewHelpers.js';
+import { BODY_WEIGHT_COLLECTION, BodyWeightLog, DATABASE_NAME } from '../../../utils/viewingUtils/viewHelpers.js';
 
 const EMBED_COLOR = 0x2ecc71;
 const DAYS_PER_WEEK = 7;

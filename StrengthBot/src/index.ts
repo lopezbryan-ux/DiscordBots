@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Events, MessageFlags, Collection } from 'discord.js';
+import { ChatInputCommandInteraction, Client, Collection, Events, GatewayIntentBits, MessageFlags } from 'discord.js';
 import dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -7,8 +7,7 @@ import { MongoClient } from 'mongodb';
 // Create a new client instance
 interface Command {
   data: { name: string };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  execute: (interaction: any) => Promise<void>;
+  execute: (interaction: ChatInputCommandInteraction) => Promise<void>;
 }
 
 interface ExtendedClient extends Client {
@@ -47,16 +46,19 @@ function getAllCommandFiles(dir: string): string[] {
   return results;
 }
 
+function isCommand(value: unknown): value is Command {
+  return typeof value === 'object' && value !== null && 'data' in value && 'execute' in value;
+}
+
 (async () => {
   const commandsPath = path.join(__dirname, 'commands');
   const commandFiles = getAllCommandFiles(commandsPath);
 
   for (const filePath of commandFiles) {
     const commandModule = await import(pathToFileURL(filePath).href);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const command = Object.values(commandModule).find((cmd: any) => cmd && 'data' in cmd && 'execute' in cmd);
+    const command = Object.values(commandModule).find(isCommand);
     if (command) {
-      client.commands.set((command as Command).data.name, command as Command);
+      client.commands.set(command.data.name, command);
     } else {
       console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
     }

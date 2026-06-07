@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { mongoClient } from '../../../index.js';
 import { ArmWrestlingLifts, LiftingCategories } from '../../../utils/liftingUtils/liftChoices.js';
-import { buildLiftField, DATABASE_NAME, LiftLog, LIFTS_COLLECTION, liftSortChoices, MAX_EMBED_FIELDS, sortLiftLogs } from '../viewHelpers.js';
+import { buildLiftField, DATABASE_NAME, LiftLog, LIFTS_COLLECTION, liftSortChoices, MAX_EMBED_FIELDS, sortLiftLogs } from '../../../utils/viewingUtils/viewHelpers.js';
 
 const EMBED_COLOR = 0x00bfff;
 
