@@ -1,6 +1,39 @@
-import { SlashCommandBuilder } from 'discord.js';
-import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
+import { ObjectId } from 'mongodb';
+import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js';
 import { mongoClient } from '../../index.js';
+
+const DATABASE_NAME = 'StrengthBotDb';
+const MEASUREMENTS_COLLECTION = 'StrengthBotMeasurements';
+const EMBED_COLOR = 0x3498db;
+const MAX_FIELDS = 25;
+const DEFAULT_UNIT = 'in';
+
+interface MeasurementRecord {
+  _id: ObjectId;
+  username: string;
+  date: string;
+  unit?: string;
+  notes?: string;
+  bicep?: number;
+  forearm?: number;
+  wrist?: number;
+  chest?: number;
+  quad?: number;
+}
+
+function getMeasurementLines(record: MeasurementRecord): string[] {
+  const unit = record.unit || DEFAULT_UNIT;
+  const lines: string[] = [];
+
+  if (record.bicep != null) lines.push(`Bicep: ${record.bicep} ${unit}`);
+  if (record.forearm != null) lines.push(`Forearm: ${record.forearm} ${unit}`);
+  if (record.wrist != null) lines.push(`Wrist: ${record.wrist} ${unit}`);
+  if (record.chest != null) lines.push(`Chest: ${record.chest} ${unit}`);
+  if (record.quad != null) lines.push(`Quad: ${record.quad} ${unit}`);
+  if (record.notes) lines.push(`Notes: ${record.notes}`);
+
+  return lines;
+}
 
 export default {
   data: new SlashCommandBuilder()
@@ -8,48 +41,30 @@ export default {
     .setDescription('View logged body measurements')
     .addUserOption((option) => option.setName('user').setDescription('User to view').setRequired(false)),
 
-  async execute(interaction: CommandInteraction<CacheType>) {
-    const chatInteraction = interaction as ChatInputCommandInteraction;
-    const targetUser = chatInteraction.options.getUser('user');
-    const username = targetUser ? targetUser.username : chatInteraction.user.username;
+  async execute(interaction: ChatInputCommandInteraction) {
+    const targetUser = interaction.options.getUser('user');
+    const username = targetUser ? targetUser.username : interaction.user.username;
 
-    const db = mongoClient.db('StrengthBotDb');
-    const measurementsCollection = db.collection('StrengthBotMeasurements');
+    const measurementsCollection = mongoClient.db(DATABASE_NAME).collection<MeasurementRecord>(MEASUREMENTS_COLLECTION);
+    const records = await measurementsCollection.find({ username }).sort({ date: -1 }).toArray();
 
-    // Fetch all records for the user, newest first
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const records: any[] = await measurementsCollection.find({ username }).sort({ date: -1 }).toArray();
-
-    if (!records || records.length === 0) {
-      await interaction.reply({ content: `No measurements found for ${username}.`, ephemeral: true });
+    if (records.length === 0) {
+      await interaction.reply({ content: `No measurements found for ${username}.`, flags: MessageFlags.Ephemeral });
       return;
     }
 
-    // Discord embeds allow up to 25 fields — show up to 25 newest entries and note if more exist
-    const maxFields = 25;
-    const shown = records.slice(0, maxFields);
+    const shown = records.slice(0, MAX_FIELDS);
+    const fields = shown.map((record) => {
+      const measurementLines = getMeasurementLines(record);
+      const value = [`ID: ${record._id}`, measurementLines.join('\n') || 'No measurements'].join('\n');
 
-    const fields = shown.map((r) => {
-      const parts: string[] = [];
-      if (r.bicep != null) parts.push(`Bicep: ${r.bicep} in`);
-      if (r.forearm != null) parts.push(`Forearm: ${r.forearm} in`);
-      if (r.wrist != null) parts.push(`Wrist: ${r.wrist} in`);
-      if (r.chest != null) parts.push(`Chest: ${r.chest} in`);
-      if (r.quad != null) parts.push(`Quad: ${r.quad} in`);
-      if (r.notes) parts.push(`Notes: ${r.notes}`);
-      const idLine = `ID: ${r._id}`;
-      const value = `${idLine}\n${parts.join('\n') || 'No measurements'}`;
-      return { name: r.date, value, inline: false };
+      return { name: record.date, value, inline: false };
     });
 
-    const embed: any = {
-      title: `Measurements — ${username}`,
-      color: 0x3498db,
-      fields,
-    };
+    const embed = new EmbedBuilder().setTitle(`Measurements - ${username}`).setColor(EMBED_COLOR).addFields(fields);
 
-    if (records.length > maxFields) {
-      embed.footer = { text: `Showing ${fields.length} of ${records.length} entries (newest first)` };
+    if (records.length > MAX_FIELDS) {
+      embed.setFooter({ text: `Showing ${fields.length} of ${records.length} entries (newest first)` });
     }
 
     await interaction.reply({ embeds: [embed] });
