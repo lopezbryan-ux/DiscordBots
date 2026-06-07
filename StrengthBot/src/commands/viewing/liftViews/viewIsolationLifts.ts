@@ -1,7 +1,9 @@
-import { SlashCommandBuilder } from 'discord.js';
-import { CommandInteraction, CacheType, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import { IsolationLifts, LiftingCategories } from '../../../utils/liftingUtils/liftChoices.js';
+import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { mongoClient } from '../../../index.js';
+import { IsolationLifts, LiftingCategories } from '../../../utils/liftingUtils/liftChoices.js';
+import { buildLiftField, DATABASE_NAME, LiftLog, LIFTS_COLLECTION, liftSortChoices, MAX_EMBED_FIELDS, sortLiftLogs } from '../viewHelpers.js';
+
+const EMBED_COLOR = 0x8e44ad;
 
 export default {
   data: new SlashCommandBuilder()
@@ -19,70 +21,38 @@ export default {
         .setName('sort')
         .setDescription('Sort by (optional)')
         .setRequired(false)
-        .addChoices(
-          { name: 'Amount (Descending)', value: 'amount-desc' },
-          { name: 'Amount (Ascending)', value: 'amount-asc' },
-          { name: 'Bodyweight (Descending)', value: 'bodyweight-desc' },
-          { name: 'Bodyweight (Ascending)', value: 'bodyweight-asc' },
-          { name: 'Date Added (Newest First)', value: 'date-desc' },
-          { name: 'Date Added (Oldest First)', value: 'date-asc' },
-        ),
+        .addChoices(...liftSortChoices),
     ),
-  async execute(interaction: CommandInteraction<CacheType>) {
-    const chatInteraction = interaction as ChatInputCommandInteraction;
-    const username = chatInteraction.user.username;
-    const db = mongoClient.db('StrengthBotDb');
-    const liftsCollection = db.collection('StrengthBotCollection');
-    let userLogs = await liftsCollection
-      .find({
-        username,
-        liftCategory: LiftingCategories.Isolation, // Only Isolation lifts
-      })
-      .toArray();
 
-    const exerciseFilter = chatInteraction.options.getString('exercise');
-    const sortOption = chatInteraction.options.getString('sort');
+  async execute(interaction: ChatInputCommandInteraction) {
+    const username = interaction.user.username;
+    const exerciseFilter = interaction.options.getString('exercise');
+    const sortOption = interaction.options.getString('sort') || 'date-desc';
+    const liftsCollection = mongoClient.db(DATABASE_NAME).collection<LiftLog>(LIFTS_COLLECTION);
+    let userLogs = await liftsCollection.find({ username, liftCategory: LiftingCategories.Isolation }).toArray();
+
     if (exerciseFilter) {
       userLogs = userLogs.filter((entry) => entry.exercise === exerciseFilter);
     }
-    if (sortOption) {
-      if (sortOption === 'amount-desc') {
-        userLogs = userLogs.sort((a, b) => b.amount - a.amount);
-      } else if (sortOption === 'amount-asc') {
-        userLogs = userLogs.sort((a, b) => a.amount - b.amount);
-      } else if (sortOption === 'bodyweight-desc') {
-        userLogs = userLogs.sort((a, b) => b.bodyweight - a.bodyweight);
-      } else if (sortOption === 'bodyweight-asc') {
-        userLogs = userLogs.sort((a, b) => a.bodyweight - b.bodyweight);
-      } else if (sortOption === 'date-desc') {
-        userLogs = userLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      } else if (sortOption === 'date-asc') {
-        userLogs = userLogs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      }
-    }
+    userLogs = sortLiftLogs(userLogs, sortOption);
+
     if (userLogs.length === 0) {
       const exerciseMsg = exerciseFilter ? ` for exercise **${exerciseFilter}**` : '';
       await interaction.reply(`No isolation lifts logged yet${exerciseMsg}.`);
       return;
     }
+
+    const shownLogs = userLogs.slice(0, MAX_EMBED_FIELDS);
     const embed = new EmbedBuilder()
       .setTitle(`Your Logged Isolation Lifts (${exerciseFilter || 'All Exercises'})`)
-      .setColor(0x8e44ad)
-      .setDescription(`Sorted by: ${sortOption || 'None'} | User: ${username}`);
+      .setColor(EMBED_COLOR)
+      .setDescription(`Sorted by: ${sortOption} | User: ${username}`)
+      .addFields(shownLogs.map(buildLiftField));
 
-    userLogs.forEach((entry: any) => {
-      const dateOnly = entry.date.split('T')[0] || entry.date;
-      const name = `─────────────\n💪 **${entry.exercise.toUpperCase()}** (ID: ${entry._id})`;
-      let value = `**Amount:** ${entry.amount} lbs\n` + `**Bodyweight:** ${entry.bodyweight} lbs\n` + `**Date:** ${dateOnly}`;
-      if (entry.additionaldetails) {
-        value += `\n**Details:** ${entry.additionaldetails}`;
-      }
-      embed.addFields({
-        name,
-        value,
-        inline: false,
-      });
-    });
+    if (userLogs.length > MAX_EMBED_FIELDS) {
+      embed.setFooter({ text: `Showing ${shownLogs.length} of ${userLogs.length} entries` });
+    }
+
     await interaction.reply({ embeds: [embed] });
   },
 };

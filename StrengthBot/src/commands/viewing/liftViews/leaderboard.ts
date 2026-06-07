@@ -1,7 +1,31 @@
-import { SlashCommandBuilder } from 'discord.js';
-import { CommandInteraction, CacheType, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { mongoClient } from '../../../index.js';
 import { ArmWrestlingLifts, CompoundLifts } from '../../../utils/liftingUtils/liftChoices.js';
+import { DATABASE_NAME, LiftLog, LIFTS_COLLECTION } from '../viewHelpers.js';
+
+const WEIGHT_COLOR = 0xffd700;
+const RATIO_COLOR = 0x00bfff;
+const LEADERBOARD_LIMIT = 3;
+
+interface RatioLiftLog extends LiftLog {
+  ratio: number;
+}
+
+function getTopUniqueUsers<T extends LiftLog>(sortedLogs: T[], limit: number): T[] {
+  const seen = new Set<string>();
+  const result: T[] = [];
+
+  for (const log of sortedLogs) {
+    if (seen.has(log.username)) continue;
+
+    seen.add(log.username);
+    result.push(log);
+
+    if (result.length === limit) break;
+  }
+
+  return result;
+}
 
 export default {
   data: new SlashCommandBuilder()
@@ -17,112 +41,69 @@ export default {
     .addStringOption((option) =>
       option
         .setName('exercise')
-        .setDescription('Exercise category (for weight leaderboard)')
+        .setDescription('Exercise category')
         .setRequired(true)
         .addChoices(...ArmWrestlingLifts, ...CompoundLifts),
     ),
-  async execute(interaction: CommandInteraction<CacheType>) {
+
+  async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply();
+
     try {
-      const chatInteraction = interaction as ChatInputCommandInteraction;
-      const type = chatInteraction.options.getString('type', true);
-      const exercise = chatInteraction.options.getString('exercise');
-      interface LiftLogEntry {
-        id: number;
-        username: string;
-        date: string;
-        exercise: string;
-        amount: number;
-        bodyweight: number;
-        additionaldetails: string;
-      }
-      // Use shared MongoDB client
-      const db = mongoClient.db('StrengthBotDb');
-      const liftsCollection = db.collection('StrengthBotCollection');
-      const rawLogs = await liftsCollection.find({}).toArray();
-      let logs: LiftLogEntry[] = rawLogs.map((doc: any) => ({
-        id: doc.id,
-        username: doc.username,
-        date: doc.date,
-        exercise: doc.exercise,
-        amount: doc.amount,
-        bodyweight: doc.bodyweight,
-        additionaldetails: doc.additionaldetails,
-      }));
-      let leaderboard: string = '';
-      // Helper to get top N unique users from a sorted array
-      function getTopNUnique(sortedArr: any[], n: number) {
-        const seen = new Set();
-        const result = [];
-        for (const entry of sortedArr) {
-          if (!seen.has(entry.username)) {
-            seen.add(entry.username);
-            result.push(entry);
-          }
-          if (result.length === n) break;
-        }
-        return result;
-      }
+      const type = interaction.options.getString('type', true);
+      const exercise = interaction.options.getString('exercise', true);
+      const liftsCollection = mongoClient.db(DATABASE_NAME).collection<LiftLog>(LIFTS_COLLECTION);
+      const logs = await liftsCollection.find({ exercise }).toArray();
 
       if (type === 'weight') {
-        if (!exercise) {
-          await interaction.editReply('Please select an exercise for the weight leaderboard.');
-          return;
-        }
-        const filtered = logs.filter((l) => l.exercise === exercise);
-        const sorted = filtered.sort((a, b) => b.amount - a.amount);
-        const topUnique = getTopNUnique(sorted, 3);
+        const sorted = logs.sort((a, b) => b.amount - a.amount);
+        const topUnique = getTopUniqueUsers(sorted, LEADERBOARD_LIMIT);
         const embed = new EmbedBuilder()
-          .setTitle(`🏆 Most Weight Lifted (${exercise})`)
-          .setColor(0xffd700)
-          .setDescription('Top 3 unique lifters by weight lifted');
-        if (topUnique.length === 0) {
-          embed.setDescription('No entries yet.');
-        } else {
-          topUnique.forEach((entry, idx) => {
-            let value = `**Amount:** ${entry.amount} lbs\n**Bodyweight:** ${entry.bodyweight} lbs\n**Date:** ${entry.date}`;
-            if (entry.additionaldetails) {
-              value += `\n**Details:** ${entry.additionaldetails}`;
-            }
-            embed.addFields({
-              name: `#${idx + 1} 🏋️ ${entry.username}`,
-              value,
-              inline: false,
-            });
-          });
-        }
+          .setTitle(`Most Weight Lifted (${exercise})`)
+          .setColor(WEIGHT_COLOR)
+          .setDescription(topUnique.length ? 'Top 3 unique lifters by weight lifted' : 'No entries yet.');
+
+        topUnique.forEach((entry, index) => {
+          const value = [`**Amount:** ${entry.amount} lbs`, `**Bodyweight:** ${entry.bodyweight} lbs`, `**Date:** ${entry.date}`];
+
+          if (entry.additionaldetails) {
+            value.push(`**Details:** ${entry.additionaldetails}`);
+          }
+
+          embed.addFields({ name: `#${index + 1} ${entry.username}`, value: value.join('\n'), inline: false });
+        });
+
         await interaction.editReply({ embeds: [embed] });
-      } else if (type === 'ratio') {
-        const filteredExercises = logs.filter((l) => l.exercise === exercise);
-        const withRatio = filteredExercises.map((l) => ({ ...l, ratio: l.amount / l.bodyweight }));
-        const sorted = withRatio.sort((a, b) => b.ratio - a.ratio);
-        const topUnique = getTopNUnique(sorted, 3);
-        const embed = new EmbedBuilder()
-          .setTitle(`🏆 Best Bodyweight-to-Weight Ratio (${exercise})`)
-          .setColor(0x00bfff)
-          .setDescription('Top 3 unique lifters by ratio');
-        if (topUnique.length === 0) {
-          embed.setDescription('No entries yet.');
-        } else {
-          topUnique.forEach((entry, idx) => {
-            let value = `**Ratio:** ${entry.ratio.toFixed(2)}\n**Amount:** ${entry.amount} lbs\n**Bodyweight:** ${entry.bodyweight} lbs`;
-            if (entry.additionaldetails) {
-              value += `\n**Details:** ${entry.additionaldetails}`;
-            }
-            embed.addFields({
-              name: `#${idx + 1} 💪 ${entry.username}`,
-              value,
-              inline: false,
-            });
-          });
-        }
-        await interaction.editReply({ embeds: [embed] });
-      } else {
-        await interaction.editReply('Invalid leaderboard type.');
+        return;
       }
+
+      if (type === 'ratio') {
+        const logsWithRatio: RatioLiftLog[] = logs.filter((log) => log.bodyweight > 0).map((log) => ({ ...log, ratio: log.amount / log.bodyweight }));
+        const sorted = logsWithRatio.sort((a, b) => b.ratio - a.ratio);
+        const topUnique = getTopUniqueUsers(sorted, LEADERBOARD_LIMIT);
+        const embed = new EmbedBuilder()
+          .setTitle(`Best Bodyweight-to-Weight Ratio (${exercise})`)
+          .setColor(RATIO_COLOR)
+          .setDescription(topUnique.length ? 'Top 3 unique lifters by ratio' : 'No entries yet.');
+
+        topUnique.forEach((entry, index) => {
+          const value = [`**Ratio:** ${entry.ratio.toFixed(2)}`, `**Amount:** ${entry.amount} lbs`, `**Bodyweight:** ${entry.bodyweight} lbs`];
+
+          if (entry.additionaldetails) {
+            value.push(`**Details:** ${entry.additionaldetails}`);
+          }
+
+          embed.addFields({ name: `#${index + 1} ${entry.username}`, value: value.join('\n'), inline: false });
+        });
+
+        await interaction.editReply({ embeds: [embed] });
+        return;
+      }
+
+      await interaction.editReply('Invalid leaderboard type.');
     } catch (err) {
       console.error('Error in leaderboard command:', err);
-      await interaction.editReply(`There was an error while executing this command!\nError: ${err instanceof Error ? err.message : String(err)}`);
+      await interaction.editReply('There was an error while executing this command.');
     }
   },
 };

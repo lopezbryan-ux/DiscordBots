@@ -1,8 +1,9 @@
-import { SlashCommandBuilder } from 'discord.js';
-import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
-
-import { CompoundLifts, ArmWrestlingLifts } from '../../../utils/liftingUtils/liftChoices.js';
+import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { mongoClient } from '../../../index.js';
+import { ArmWrestlingLifts, CompoundLifts } from '../../../utils/liftingUtils/liftChoices.js';
+import { DATABASE_NAME, LiftLog, LIFTS_COLLECTION } from '../viewHelpers.js';
+
+const EMBED_COLOR = 0x00bfff;
 
 export default {
   data: new SlashCommandBuilder()
@@ -15,42 +16,26 @@ export default {
         .setRequired(true)
         .addChoices(...CompoundLifts, ...ArmWrestlingLifts),
     ),
-  async execute(interaction: CommandInteraction<CacheType>) {
-    const chatInteraction = interaction as ChatInputCommandInteraction;
-    const username = chatInteraction.user.username;
-    const exercise = chatInteraction.options.getString('exercise', true);
 
-    // Get user's lifts for the exercise from MongoDB
-    interface LiftEntry {
-      date: string;
-      amount: number;
-    }
-    // Use shared MongoDB client
-    const db = mongoClient.db('StrengthBotDb');
-    const liftsCollection = db.collection('StrengthBotCollection');
-    const rawLifts = await liftsCollection.find({ username, exercise }).sort({ date: 1 }).toArray();
-    const lifts: LiftEntry[] = rawLifts.map((doc) => ({
-      date: doc.date,
-      amount: doc.amount,
-    }));
+  async execute(interaction: ChatInputCommandInteraction) {
+    const username = interaction.user.username;
+    const exercise = interaction.options.getString('exercise', true);
+    const liftsCollection = mongoClient.db(DATABASE_NAME).collection<LiftLog>(LIFTS_COLLECTION);
+    const lifts = await liftsCollection.find({ username, exercise }).sort({ date: 1 }).toArray();
+
     if (lifts.length === 0) {
       await interaction.reply('No lifts found for this exercise.');
       return;
     }
 
-    // Prepare data for chart
-    const labels = lifts.map((l) => l.date);
-    const data = lifts.map((l) => l.amount);
-
-    // QuickChart API payload
     const chartConfig = {
       type: 'line',
       data: {
-        labels,
+        labels: lifts.map((lift) => lift.date),
         datasets: [
           {
             label: `${exercise} Progress`,
-            data,
+            data: lifts.map((lift) => lift.amount),
             fill: false,
             borderColor: 'rgb(75, 192, 192)',
             tension: 0.1,
@@ -82,14 +67,8 @@ export default {
     };
 
     const chartUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
-    await interaction.reply({
-      embeds: [
-        {
-          title: `${exercise} Progress Chart`,
-          image: { url: chartUrl },
-          color: 0x00bfff,
-        },
-      ],
-    });
+    const embed = new EmbedBuilder().setTitle(`${exercise} Progress Chart`).setColor(EMBED_COLOR).setImage(chartUrl);
+
+    await interaction.reply({ embeds: [embed] });
   },
 };

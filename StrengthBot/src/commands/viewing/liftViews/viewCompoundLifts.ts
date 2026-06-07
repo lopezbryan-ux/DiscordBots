@@ -1,7 +1,18 @@
-import { SlashCommandBuilder } from 'discord.js';
-import { CommandInteraction, CacheType, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import { CompoundLifts, LiftingCategories } from '../../../utils/liftingUtils/liftChoices.js';
+import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { mongoClient } from '../../../index.js';
+import { CompoundLifts, LiftingCategories } from '../../../utils/liftingUtils/liftChoices.js';
+import {
+  buildLiftField,
+  DATABASE_NAME,
+  getHeaviestByExercise,
+  LiftLog,
+  LIFTS_COLLECTION,
+  liftSortChoices,
+  MAX_EMBED_FIELDS,
+  sortLiftLogs,
+} from '../viewHelpers.js';
+
+const EMBED_COLOR = 0x009688;
 
 export default {
   data: new SlashCommandBuilder()
@@ -19,64 +30,39 @@ export default {
         .setName('sort')
         .setDescription('Sort by (optional)')
         .setRequired(false)
-        .addChoices(
-          { name: 'Amount (Descending)', value: 'amount-desc' },
-          { name: 'Amount (Ascending)', value: 'amount-asc' },
-          { name: 'Bodyweight (Descending)', value: 'bodyweight-desc' },
-          { name: 'Bodyweight (Ascending)', value: 'bodyweight-asc' },
-          { name: 'Date Added (Newest First)', value: 'date-desc' },
-          { name: 'Date Added (Oldest First)', value: 'date-asc' },
-        ),
+        .addChoices(...liftSortChoices),
     ),
-  async execute(interaction: CommandInteraction<CacheType>) {
-    const chatInteraction = interaction as ChatInputCommandInteraction;
-    const username = chatInteraction.user.username;
-    const db = mongoClient.db('StrengthBotDb');
-    const liftsCollection = db.collection('StrengthBotCollection');
-    const userLogs = await liftsCollection
-      .find({
-        username,
-        liftCategory: LiftingCategories.Compound, // Only Compound lifts
-      })
-      .toArray();
 
-    const exerciseFilter = chatInteraction.options.getString('exercise');
-    // Only show the heaviest achieved lift for each exercise
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const heaviestByExercise: Record<string, any> = {};
-    userLogs.forEach((entry) => {
-      if (!heaviestByExercise[entry.exercise] || entry.amount > heaviestByExercise[entry.exercise].amount) {
-        heaviestByExercise[entry.exercise] = entry;
-      }
-    });
-    let displayLogs = Object.values(heaviestByExercise);
+  async execute(interaction: ChatInputCommandInteraction) {
+    const username = interaction.user.username;
+    const exerciseFilter = interaction.options.getString('exercise');
+    const sortOption = interaction.options.getString('sort') || 'amount-desc';
+    const liftsCollection = mongoClient.db(DATABASE_NAME).collection<LiftLog>(LIFTS_COLLECTION);
+    const userLogs = await liftsCollection.find({ username, liftCategory: LiftingCategories.Compound }).toArray();
+
+    let displayLogs = getHeaviestByExercise(userLogs);
     if (exerciseFilter) {
       displayLogs = displayLogs.filter((entry) => entry.exercise === exerciseFilter);
     }
+    displayLogs = sortLiftLogs(displayLogs, sortOption);
+
     if (displayLogs.length === 0) {
       const exerciseMsg = exerciseFilter ? ` for exercise **${exerciseFilter}**` : '';
       await interaction.reply(`No compound lifts logged yet${exerciseMsg}.`);
       return;
     }
+
+    const shownLogs = displayLogs.slice(0, MAX_EMBED_FIELDS);
     const embed = new EmbedBuilder()
       .setTitle(`Your Heaviest Compound Lifts (${exerciseFilter || 'All Exercises'})`)
-      .setColor(0x009688)
-      .setDescription(`User: ${username}`);
+      .setColor(EMBED_COLOR)
+      .setDescription(`Sorted by: ${sortOption} | User: ${username}`)
+      .addFields(shownLogs.map(buildLiftField));
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    displayLogs.forEach((entry: any) => {
-      const dateOnly = entry.date.split('T')[0] || entry.date;
-      const name = `─────────────\n🏋️ **${entry.exercise.toUpperCase()}** (ID: ${entry._id})`;
-      let value = `**Amount:** ${entry.amount} lbs\n` + `**Bodyweight:** ${entry.bodyweight} lbs\n` + `**Date:** ${dateOnly}`;
-      if (entry.additionaldetails) {
-        value += `\n**Details:** ${entry.additionaldetails}`;
-      }
-      embed.addFields({
-        name,
-        value,
-        inline: false,
-      });
-    });
+    if (displayLogs.length > MAX_EMBED_FIELDS) {
+      embed.setFooter({ text: `Showing ${shownLogs.length} of ${displayLogs.length} entries` });
+    }
+
     await interaction.reply({ embeds: [embed] });
   },
 };

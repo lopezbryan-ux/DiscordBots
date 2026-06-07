@@ -1,53 +1,59 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import { CommandInteraction, CacheType, ChatInputCommandInteraction } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { mongoClient } from '../../../index.js';
+import { BODY_WEIGHT_COLLECTION, BodyWeightLog, DATABASE_NAME } from '../viewHelpers.js';
 
-function getWeekKey(dateStr: string) {
-  const date = new Date(dateStr);
-  // Get ISO week number
+const EMBED_COLOR = 0x2ecc71;
+const DAYS_PER_WEEK = 7;
+const HOURS_PER_DAY = 24;
+const MINUTES_PER_HOUR = 60;
+const SECONDS_PER_MINUTE = 60;
+const MILLISECONDS_PER_SECOND = 1000;
+
+function getWeekKey(dateValue: string): string {
+  const date = new Date(dateValue);
   const year = date.getUTCFullYear();
   const firstJan = new Date(Date.UTC(year, 0, 1));
-  const days = Math.floor((date.getTime() - firstJan.getTime()) / (24 * 60 * 60 * 1000));
-  const week = Math.ceil((days + firstJan.getUTCDay() + 1) / 7);
+  const dayMilliseconds = HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND;
+  const days = Math.floor((date.getTime() - firstJan.getTime()) / dayMilliseconds);
+  const week = Math.ceil((days + firstJan.getUTCDay() + 1) / DAYS_PER_WEEK);
+
   return `${year}-W${week.toString().padStart(2, '0')}`;
 }
 
 export default {
   data: new SlashCommandBuilder().setName('weeklybodyweight').setDescription('View your weekly average body weight'),
-  async execute(interaction: CommandInteraction<CacheType>) {
-    const chatInteraction = interaction as ChatInputCommandInteraction;
-    const username = chatInteraction.user.username;
-    const db = mongoClient.db('StrengthBotDb');
-    const bodyWeightCollection = db.collection('StrengthBotBodyWeight');
+
+  async execute(interaction: ChatInputCommandInteraction) {
+    const username = interaction.user.username;
+    const bodyWeightCollection = mongoClient.db(DATABASE_NAME).collection<BodyWeightLog>(BODY_WEIGHT_COLLECTION);
     const logs = await bodyWeightCollection.find({ username }).sort({ date: 1 }).toArray();
-    if (!logs.length) {
+
+    if (logs.length === 0) {
       await interaction.reply('No body weight logs found.');
       return;
     }
 
-    // Group by week
-    const weekMap: Record<string, number[]> = {};
+    const weekMap = new Map<string, number[]>();
     for (const log of logs) {
       const weekKey = getWeekKey(log.date);
-      if (!weekMap[weekKey]) weekMap[weekKey] = [];
-      weekMap[weekKey].push(log.bodyweight);
+      const weights = weekMap.get(weekKey) || [];
+      weights.push(log.bodyweight);
+      weekMap.set(weekKey, weights);
     }
 
-    // Calculate averages
-    const weekAverages = Object.entries(weekMap).map(([week, weights]) => ({
+    const weekAverages = [...weekMap.entries()].map(([week, weights]) => ({
       week,
-      avg: (weights.reduce((a, b) => a + b, 0) / weights.length).toFixed(2),
+      average: Number((weights.reduce((total, weight) => total + weight, 0) / weights.length).toFixed(2)),
     }));
 
-    // Prepare QuickChart line chart config
     const chartConfig = {
       type: 'line',
       data: {
-        labels: weekAverages.map((w) => w.week),
+        labels: weekAverages.map((entry) => entry.week),
         datasets: [
           {
             label: 'Weekly Avg Body Weight',
-            data: weekAverages.map((w) => Number(w.avg)),
+            data: weekAverages.map((entry) => entry.average),
             fill: false,
             borderColor: '#000000',
             backgroundColor: '#000000',
@@ -76,11 +82,9 @@ export default {
     };
 
     const chartUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}&backgroundColor=white`;
-
-    // Build embed with chart image
     const embed = new EmbedBuilder()
-      .setTitle('📊 Weekly Average Body Weight')
-      .setColor(0x2ecc71)
+      .setTitle('Weekly Average Body Weight')
+      .setColor(EMBED_COLOR)
       .setDescription(`User: **${username}**`)
       .setImage(chartUrl);
 
