@@ -1,4 +1,14 @@
-import { ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder, SlashCommandSubcommandBuilder } from 'discord.js';
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChatInputCommandInteraction,
+  ComponentType,
+  EmbedBuilder,
+  MessageFlags,
+  SlashCommandBuilder,
+  SlashCommandSubcommandBuilder,
+} from 'discord.js';
 import { mongoClient } from '../../../index.js';
 import { ArmWrestlingLifts, CompoundLifts, IsolationLifts, LiftingCategories } from '../../../utils/liftingUtils/liftChoices.js';
 import {
@@ -8,9 +18,11 @@ import {
   LiftLog,
   LIFTS_COLLECTION,
   liftSortChoices,
-  MAX_EMBED_FIELDS,
   sortLiftLogs,
 } from '../../../utils/viewingUtils/viewHelpers.js';
+
+const PAGE_SIZE = 5;
+const PAGINATION_TIMEOUT_MS = 120000;
 
 interface LiftViewConfig {
   choices: { name: string; value: string }[];
@@ -74,6 +86,43 @@ function addViewOptions(subcommand: SlashCommandSubcommandBuilder, config: LiftV
     );
 }
 
+function createLiftEmbed(
+  config: LiftViewConfig,
+  displayLogs: LiftLog[],
+  pageIndex: number,
+  exerciseFilter: string | null,
+  sortOption: string,
+  username: string,
+): EmbedBuilder {
+  const totalPages = Math.ceil(displayLogs.length / PAGE_SIZE);
+  const startIndex = pageIndex * PAGE_SIZE;
+  const shownLogs = displayLogs.slice(startIndex, startIndex + PAGE_SIZE);
+
+  return new EmbedBuilder()
+    .setTitle(`Your ${config.titleLabel} (${exerciseFilter || 'All Exercises'})`)
+    .setColor(config.color)
+    .setDescription(`Sorted by: ${sortOption} | User: ${username}`)
+    .addFields(shownLogs.map(buildLiftField))
+    .setFooter({
+      text: `Page ${pageIndex + 1} of ${totalPages} | Showing ${startIndex + 1}-${startIndex + shownLogs.length} of ${displayLogs.length} entries`,
+    });
+}
+
+function createPaginationControls(pageIndex: number, totalPages: number, disabled = false): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId('viewlifts_previous')
+      .setLabel('Previous')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(disabled || pageIndex === 0),
+    new ButtonBuilder()
+      .setCustomId('viewlifts_next')
+      .setLabel('Next')
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(disabled || pageIndex === totalPages - 1),
+  );
+}
+
 export default {
   data: new SlashCommandBuilder()
     .setName('viewlifts')
@@ -103,10 +152,7 @@ export default {
     const liftsCollection = mongoClient.db(DATABASE_NAME).collection<LiftLog>(LIFTS_COLLECTION);
     const userLogs = await liftsCollection.find({ username, liftCategory: config.liftCategory }).toArray();
 
-    let displayLogs = config.getDisplayLogs(userLogs);
-    if (exerciseFilter) {
-      displayLogs = displayLogs.filter((entry) => entry.exercise === exerciseFilter);
-    }
+    let displayLogs = exerciseFilter ? userLogs.filter((entry) => entry.exercise === exerciseFilter) : config.getDisplayLogs(userLogs);
     displayLogs = sortLiftLogs(displayLogs, sortOption);
 
     if (displayLogs.length === 0) {
@@ -115,17 +161,47 @@ export default {
       return;
     }
 
-    const shownLogs = displayLogs.slice(0, MAX_EMBED_FIELDS);
-    const embed = new EmbedBuilder()
-      .setTitle(`Your ${config.titleLabel} (${exerciseFilter || 'All Exercises'})`)
-      .setColor(config.color)
-      .setDescription(`Sorted by: ${sortOption} | User: ${username}`)
-      .addFields(shownLogs.map(buildLiftField));
+    let pageIndex = 0;
+    const totalPages = Math.ceil(displayLogs.length / PAGE_SIZE);
+    const hasMultiplePages = totalPages > 1;
 
-    if (displayLogs.length > MAX_EMBED_FIELDS) {
-      embed.setFooter({ text: `Showing ${shownLogs.length} of ${displayLogs.length} entries` });
+    await interaction.reply({
+      embeds: [createLiftEmbed(config, displayLogs, pageIndex, exerciseFilter, sortOption, username)],
+      components: hasMultiplePages ? [createPaginationControls(pageIndex, totalPages)] : [],
+    });
+
+    if (!hasMultiplePages) {
+      return;
     }
 
-    await interaction.reply({ embeds: [embed] });
+    const message = await interaction.fetchReply();
+    const collector = message.createMessageComponentCollector({
+      componentType: ComponentType.Button,
+      time: PAGINATION_TIMEOUT_MS,
+    });
+
+    collector.on('collect', async (buttonInteraction) => {
+      if (buttonInteraction.user.id !== interaction.user.id) {
+        await buttonInteraction.reply({
+          content: 'Run /viewlifts to open your own lift view.',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+
+      pageIndex += buttonInteraction.customId === 'viewlifts_next' ? 1 : -1;
+      pageIndex = Math.max(0, Math.min(pageIndex, totalPages - 1));
+
+      await buttonInteraction.update({
+        embeds: [createLiftEmbed(config, displayLogs, pageIndex, exerciseFilter, sortOption, username)],
+        components: [createPaginationControls(pageIndex, totalPages)],
+      });
+    });
+
+    collector.on('end', async () => {
+      await interaction.editReply({
+        components: [createPaginationControls(pageIndex, totalPages, true)],
+      });
+    });
   },
 };
