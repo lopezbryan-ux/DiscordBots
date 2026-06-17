@@ -55,9 +55,7 @@ const HELP_PAGES: HelpPage[] = [
     description: 'Log, view, and remove lift entries.',
     commands: [
       { name: '/loglift', desc: 'Log a compound, isolation, or armwrestling lift.' },
-      { name: '/viewawlifts', desc: 'View your logged armwrestling lifts.' },
-      { name: '/viewcompoundlifts', desc: 'View your logged compound lifts.' },
-      { name: '/viewisolationlifts', desc: 'View your logged isolation lifts.' },
+      { name: '/viewlifts', desc: 'View compound, isolation, or armwrestling lifts.' },
       { name: '/removelift', desc: 'Remove a logged lift by ID.' },
     ],
   },
