@@ -15,6 +15,7 @@ export const ArmWrestlingLifts = [
   { name: 'Partial Preacher Curl', value: 'Partial Preacher Curl' },
   { name: 'Wrist Curl', value: 'Wrist Curl' },
   { name: 'Supinating Press', value: 'Supinating Press' },
+  { name: 'Full ROM Pronation Curl', value: 'Full ROM Pronation Curl' },
 ];
 
 export const IsolationLifts = [{ name: 'Strict Curl', value: 'Strict Curl' }];
