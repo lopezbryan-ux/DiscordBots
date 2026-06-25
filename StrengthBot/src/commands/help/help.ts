@@ -26,6 +26,7 @@ const HELP_PAGES: HelpPage[] = [
     description: 'Bot info and AI help.',
     commands: [
       { name: '/help', desc: 'Show categorized command help.' },
+      { name: '/convert', desc: 'Convert weight between kilograms and pounds.' },
       { name: '/askstrengthbot', desc: 'Ask StrengthBot any fitness or strength question.' },
     ],
   },
