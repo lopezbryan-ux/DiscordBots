@@ -11,8 +11,8 @@ const conversionChoices = [
 
 function formatNumber(value: number): string {
   return value.toLocaleString('en-US', {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 0,
+    maximumFractionDigits: 3,
+    minimumFractionDigits: 3,
   });
 }
 
