@@ -84,15 +84,25 @@ export function getHeaviestByExercise(logs: LiftLog[]): LiftLog[] {
   return [...heaviestByExercise.values()];
 }
 
-export function buildLiftField(log: LiftLog): { name: string; value: string; inline: false } {
-  const value = [`**Amount:** ${log.amount} lbs`, `**Bodyweight:** ${log.bodyweight} lbs`, `**Date:** ${formatDateOnly(log.date)}`];
+export function formatLiftSortLabel(sortOption: string): string {
+  return liftSortChoices.find((choice) => choice.value === sortOption)?.name ?? sortOption;
+}
+
+export function buildLiftField(log: LiftLog, entryNumber?: number): { name: string; value: string; inline: false } {
+  const titlePrefix = entryNumber ? `${entryNumber}. ` : '';
+  const value = [
+    `Weight: **${log.amount} lbs**`,
+    `Bodyweight: **${log.bodyweight} lbs**`,
+    `Logged: **${formatDateOnly(log.date)}**`,
+    `ID: \`${log._id}\``,
+  ];
 
   if (log.additionaldetails) {
-    value.push(`**Details:** ${log.additionaldetails}`);
+    value.push(`Notes: ${log.additionaldetails}`);
   }
 
   return {
-    name: `${log.exercise} (ID: ${log._id})`,
+    name: `${titlePrefix}${log.exercise}`,
     value: value.join('\n'),
     inline: false,
   };

@@ -14,6 +14,7 @@ import { ArmWrestlingLifts, CompoundLifts, IsolationLifts, LiftingCategories } f
 import {
   buildLiftField,
   DATABASE_NAME,
+  formatLiftSortLabel,
   getHeaviestByExercise,
   LiftLog,
   LIFTS_COLLECTION,
@@ -97,14 +98,17 @@ function createLiftEmbed(
   const totalPages = Math.ceil(displayLogs.length / PAGE_SIZE);
   const startIndex = pageIndex * PAGE_SIZE;
   const shownLogs = displayLogs.slice(startIndex, startIndex + PAGE_SIZE);
+  const exerciseLabel = exerciseFilter || 'All exercises';
+  const showingStart = startIndex + 1;
+  const showingEnd = startIndex + shownLogs.length;
 
   return new EmbedBuilder()
-    .setTitle(`Your ${config.titleLabel} (${exerciseFilter || 'All Exercises'})`)
+    .setTitle(config.titleLabel)
     .setColor(config.color)
-    .setDescription(`Sorted by: ${sortOption} | User: ${username}`)
-    .addFields(shownLogs.map(buildLiftField))
+    .setDescription([`User: **${username}**`, `Exercise: **${exerciseLabel}**`, `Sort: **${formatLiftSortLabel(sortOption)}**`].join('\n'))
+    .addFields(shownLogs.map((log, index) => buildLiftField(log, startIndex + index + 1)))
     .setFooter({
-      text: `Page ${pageIndex + 1} of ${totalPages} | Showing ${startIndex + 1}-${startIndex + shownLogs.length} of ${displayLogs.length} entries`,
+      text: `Showing ${showingStart}-${showingEnd} of ${displayLogs.length} entries | Page ${pageIndex + 1} of ${totalPages}`,
     });
 }
 
@@ -115,6 +119,11 @@ function createPaginationControls(pageIndex: number, totalPages: number, disable
       .setLabel('Previous')
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(disabled || pageIndex === 0),
+    new ButtonBuilder()
+      .setCustomId('viewlifts_page_indicator')
+      .setLabel(`Page ${pageIndex + 1}/${totalPages}`)
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true),
     new ButtonBuilder()
       .setCustomId('viewlifts_next')
       .setLabel('Next')
