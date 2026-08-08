@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, MessageFlags, SlashCommandBuilder, SlashCommandSubcommandBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, MessageFlags, SlashCommandBuilder, SlashCommandSubcommandBuilder } from 'discord.js';
 import { mongoClient } from '../../index.js';
 import { ArmWrestlingLifts, CompoundLifts, IsolationLifts, LiftingCategories } from '../../utils/liftingUtils/liftChoices.js';
 import { validateAmount, validateBodyweight } from '../../utils/liftingUtils/validations.js';
@@ -6,6 +6,8 @@ import { validateAmount, validateBodyweight } from '../../utils/liftingUtils/val
 const DATABASE_NAME = 'StrengthBotDb';
 const LIFTS_COLLECTION = 'StrengthBotCollection';
 const MAX_DETAILS_LENGTH = 1000;
+const LOGGED_COLOR = 0x2ecc71;
+const PR_COLOR = 0xf1c40f;
 
 interface LiftLog {
   username: string;
@@ -23,10 +25,57 @@ const LIFT_CATEGORY_BY_SUBCOMMAND: Record<string, string> = {
   isolation: LiftingCategories.Isolation,
 };
 
-function buildLoggedMessage(exercise: string, amount: number, bodyweight: number, date: string, details: string): string {
-  const detailsText = details ? ` (${details})` : '';
+interface PersonalRecordInfo {
+  isPersonalRecord: boolean;
+  title: string;
+  value: string;
+}
 
-  return `Logged: ${exercise} - ${amount}lbs @ ${bodyweight}lbs bodyweight on ${date}${detailsText}`;
+function buildPersonalRecordInfo(amount: number, previousBest?: LiftLog | null): PersonalRecordInfo {
+  if (!previousBest) {
+    return {
+      isPersonalRecord: true,
+      title: 'Starting PR',
+      value: `First entry for this exercise. Starting best: **${amount} lbs**`,
+    };
+  }
+
+  if (amount <= previousBest.amount) {
+    return {
+      isPersonalRecord: false,
+      title: 'Current PR',
+      value: `Best remains **${previousBest.amount} lbs**`,
+    };
+  }
+
+  const increase = amount - previousBest.amount;
+
+  return {
+    isPersonalRecord: true,
+    title: 'New PR',
+    value: `**${amount} lbs** is up **${increase} lbs** from your previous best of **${previousBest.amount} lbs**`,
+  };
+}
+
+function buildLoggedLiftEmbed(log: LiftLog, prInfo: PersonalRecordInfo, logId: string): EmbedBuilder {
+  const embed = new EmbedBuilder()
+    .setTitle(prInfo.isPersonalRecord ? `Lift Logged - ${prInfo.title}` : 'Lift Logged')
+    .setColor(prInfo.isPersonalRecord ? PR_COLOR : LOGGED_COLOR)
+    .setDescription(`**${log.exercise}** saved for **${log.username}**.`)
+    .addFields(
+      { name: 'Weight', value: `${log.amount} lbs`, inline: true },
+      { name: 'Bodyweight', value: `${log.bodyweight} lbs`, inline: true },
+      { name: 'Date', value: log.date, inline: true },
+      { name: 'Category', value: log.liftCategory, inline: true },
+      { name: prInfo.title, value: prInfo.value, inline: false },
+      { name: 'Log ID', value: `\`${logId}\``, inline: false },
+    );
+
+  if (log.additionaldetails) {
+    embed.addFields({ name: 'Notes', value: log.additionaldetails, inline: false });
+  }
+
+  return embed;
 }
 
 function addLiftOptions(subcommand: SlashCommandSubcommandBuilder, exerciseDescription: string, choices: { name: string; value: string }[]) {
@@ -87,7 +136,9 @@ export default {
     }
 
     const liftsCollection = mongoClient.db(DATABASE_NAME).collection<LiftLog>(LIFTS_COLLECTION);
-    await liftsCollection.insertOne({
+    const previousBest = await liftsCollection.findOne({ username, exercise, liftCategory }, { sort: { amount: -1 } });
+
+    const liftLog = {
       username,
       date,
       exercise,
@@ -95,8 +146,11 @@ export default {
       bodyweight,
       additionaldetails,
       liftCategory,
-    });
+    };
 
-    await interaction.reply(buildLoggedMessage(exercise, amount, bodyweight, date, additionaldetails));
+    const result = await liftsCollection.insertOne(liftLog);
+    const prInfo = buildPersonalRecordInfo(amount, previousBest);
+
+    await interaction.reply({ embeds: [buildLoggedLiftEmbed(liftLog, prInfo, result.insertedId.toString())] });
   },
 };
