@@ -12,20 +12,21 @@
     "migrate-rating-book-ids": "node scripts/migrate-rating-book-ids.mjs",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
-    "cleanrun": "git pull && rm -rf dist && npm run build && npm run deploy-commands && node dist/index.js"
+    "cleanrun": "bash ../scripts/run-bot.sh BookBot"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lopezbryan-ux/Book-Bot.git"
+    "url": "git+https://github.com/lopezbryan-ux/DiscordBots.git",
+    "directory": "BookBot"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "bugs": {
-    "url": "https://github.com/lopezbryan-ux/Book-Bot/issues"
+    "url": "https://github.com/lopezbryan-ux/DiscordBots/issues"
   },
-  "homepage": "https://github.com/lopezbryan-ux/Book-Bot#readme",
+  "homepage": "https://github.com/lopezbryan-ux/DiscordBots/tree/main/BookBot#readme",
   "devDependencies": {
     "@types/node": "^26.0.0",
     "tsx": "^4.22.4",

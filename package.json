@@ -1,0 +1,17 @@
+{
+  "name": "discord-bots",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Independent Discord bots and permission inspection tools",
+  "scripts": {
+    "install:all": "npm --prefix StrengthBot ci && npm --prefix BookBot ci && npm --prefix DiscordMCP ci",
+    "build": "npm run build:strengthbot && npm run build:bookbot && npm run build:mcp",
+    "build:strengthbot": "npm --prefix StrengthBot run build",
+    "build:bookbot": "npm --prefix BookBot run build",
+    "build:mcp": "npm --prefix DiscordMCP run build",
+    "test": "npm run test:deployment && npm run test:bookbot && npm run test:mcp",
+    "test:deployment": "node --test test/*.test.mjs",
+    "test:bookbot": "npm --prefix BookBot test",
+    "test:mcp": "npm --prefix DiscordMCP test"
+  }
+}

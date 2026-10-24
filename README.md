@@ -1,44 +1,93 @@
-# StrengthBot
+# DiscordBots
 
-Bot for my friends to log workouts, track strength progress, and compare lifts through Discord. Built with TypeScript, Discord.js, and MongoDB, and hosted on a Raspberry Pi.
+Independent Discord bots and tools maintained in one Git repository and hosted
+on a Raspberry Pi.
 
-Use `/help` to browse six command categories: General, Body Weight, Measurements, Lifting, Progress, and Cardio. Previous and Next move between pages. Only the member who opened the menu can use its buttons, and the controls expire after two minutes.
+| Package                              | Purpose                                           | Runtime                   |
+| ------------------------------------ | ------------------------------------------------- | ------------------------- |
+| [StrengthBot](StrengthBot/README.md) | Workout logging, progress, and fitness commands   | PM2 `strengthbot`         |
+| [BookBot](BookBot/README.md)         | Book libraries, reviews, rankings, and club polls | PM2 `book-bot`            |
+| [DiscordMCP](DiscordMCP/README.md)   | Read-only inspection of Discord permissions       | Started by the MCP client |
 
-Use `/loglift compound`, `/loglift isolation`, or `/loglift armwrestling` to save a lift. Choose an exercise, enter the amount lifted and your body weight in pounds, and optionally add `additionaldetails`. Each entry saves the date and returns a log ID. Your first entry establishes a starting personal record; a heavier entry highlights the new PR and how much it increased.
+Each package has its own `package.json`, lockfile, `node_modules`, `.env`, and
+`dist` directory. Dependency versions and deployments remain independent.
+The root package provides commands without enabling npm workspaces or hoisting.
 
-Example: `/loglift compound exercise:Barbell Bench amount:225 bodyweight:180 additionaldetails:Paused single`
+## Setup
 
-`/viewlifts` uses the same three categories and shows up to five entries per page. Use Previous and Next to browse, and the optional `exercise` and `sort` fields to filter or sort by weight lifted, body weight, or date. The compound view shows your heaviest entry for each exercise by default; selecting an exercise shows its full history. Isolation and armwrestling views show all entries, newest first by default. Pagination controls expire after two minutes.
-
-Example: `/viewlifts compound exercise:Barbell Bench sort:date-desc`
-
-`/leaderboard` shows the top three distinct lifters for a compound or armwrestling exercise. Choose `weight` for the most weight lifted or `ratio` for weight lifted divided by body weight. `/progresschart` plots your logged weights over time for a compound or armwrestling exercise. `/strengthstandards` compares your best squat, bench, and deadlift with the bot's body weight standards for male lifters and shows your combined total.
-
-`/onerepmax` estimates a one-rep max from the weight lifted and number of repetitions. Choose a formula or leave it blank to see all formula results and their average. `/convert` converts between kilograms and pounds.
-
-Example: `/onerepmax weight:185 reps:5`
-
-Use `/logbodyweight` to save your weight in pounds with optional notes, `/viewbodyweight` to review recent entries, and `/weeklybodyweight` to chart weekly averages. `/bmicalculator` calculates BMI from height and weight. `/ffmi` calculates Fat-Free Mass Index from height, weight, and body fat percentage.
-
-Use `/logmeasurements` to record any combination of bicep, forearm, wrist, chest, and quad measurements in inches, with optional `notes`. At least one measurement is required. `/viewmeasurements` shows your recent entries; its optional `user` field lets you view another member's measurements.
-
-Example: `/logmeasurements bicep:15.5 forearm:12.5 notes:Measured relaxed`
-
-Use `/logcardio` to save a run or bike ride with body weight in pounds, time in `MM:SS` format, distance in miles, and optional notes. The reply includes your pace per mile. `/viewcardio` shows recent sessions. Body weight, measurement, and cardio views show up to 25 entries, newest first.
-
-Example: `/logcardio cardiotype:run bodyweight:180 time:25:30 distance:3`
-
-To remove an entry, copy its ID from the corresponding view and use `/removelift`, `/removebodyweightlog`, `/deletemeasurements`, or `/removecardio` with the `id` field. These commands remove only entries associated with your Discord username. Logs are currently associated with usernames rather than Discord user IDs, so changing your username affects which existing entries the bot finds.
-
-Use `/askstrengthbot question:...` to ask a fitness or strength question. Questions can contain up to 500 characters. Replies come through Hugging Face's inference router and are kept short; this command sends your question without attaching your saved workout history. Progress charts, weekly weight charts, and the strength standards table use QuickChart.
-
-For setup, run commands from the `StrengthBot` directory and create a `.env` file containing `DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, `MONGODB_URI`, and `HF_TOKEN`. Keep credentials out of Git. Workout data is stored in the MongoDB database `StrengthBotDb`.
+Clone this repository once. Install Node.js and npm versions compatible with all
+packages, then install each package's locked dependencies:
 
 ```bash
-npm install
-npm run build
-npm run deploy-commands
-npm start
+npm run install:all
 ```
 
-`npm run build` compiles the TypeScript source, `npm run deploy-commands` registers slash commands in the configured Discord server, and `npm start` runs the compiled bot. For PM2 startup and restarts on the host, follow [StrengthBot's deployment workflow](StrengthBot/SKILL.md).
+Follow each package's README to configure its ignored `.env`. BookBot and
+DiscordMCP provide `.env.example` templates with fictional IDs. Give environment
+files mode `600` on the Pi. Configuration is local to each package; keep bot
+tokens, database credentials, local reports, and PM2 dumps out of Git.
+
+Build everything or just one package:
+
+```bash
+npm run build
+npm run build:bookbot
+npm run build:strengthbot
+npm run build:mcp
+```
+
+Run the root deployment tests and both package test suites:
+
+```bash
+npm test
+```
+
+StrengthBot currently has no automated test suite; its TypeScript build is part
+of `npm run build`. Individual package commands also work, for example
+`npm --prefix BookBot test`.
+
+## Deployment on the Pi
+
+The root `ecosystem.config.js` declares separate `strengthbot` and `book-bot`
+processes with paths relative to this checkout. Follow the package deployment
+instructions: [StrengthBot](StrengthBot/SKILL.md) or [BookBot](BookBot/SKILL.md).
+
+For the first start of a process that does not already exist:
+
+```bash
+pm2 start ecosystem.config.js --only book-bot
+```
+
+For routine deployment of an existing bot:
+
+```bash
+pm2 restart book-bot
+pm2 status book-bot
+pm2 logs book-bot --lines 50 --nostream
+```
+
+Use `strengthbot` for StrengthBot. Each bot's `cleanrun` invokes
+`scripts/run-bot.sh`, which takes a shared `flock` lock, pulls with `--ff-only`,
+cleans and builds that package, registers its commands, then releases the lock
+before launching it. This keeps simultaneous boot preparation from colliding in
+the shared Git checkout. The deploy script requires Bash, `flock`, Git, npm, and
+Node.js on the Pi. A failed pull, build, or registration stops that launch.
+
+Commit and push changes before deploying them from another checkout. A pull
+updates the whole repository; restarting one bot builds and runs that package.
+Save the PM2 process list with `pm2 save` after intentionally changing process
+paths. An enabled PM2 system service restores the saved processes at boot.
+
+DiscordMCP stays registered with its MCP client using its compiled entry point.
+It is launched by the client when connecting. When reusing BookBot credentials,
+its ignored configuration should point to this checkout's `BookBot/.env`.
+
+## BookBot import
+
+BookBot's 55-commit development history was imported into this repository. Real
+Discord IDs in historical examples and tests were replaced with fictional IDs;
+the import preserves commit authors, dates, and messages, with affected commit
+hashes changing. New BookBot work belongs in `BookBot/` here. The original
+standalone checkout can be retained locally for rollback. Local environment
+files, dependency installations, builds, and database snapshots are not part of
+the imported history. Moving the code does not require moving the database.

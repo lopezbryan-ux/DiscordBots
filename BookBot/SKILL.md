@@ -5,7 +5,9 @@ description: Deploy, start, or restart Book-Bot through PM2 when the user asks t
 
 # Deploy Book-Bot
 
-Run commands from the Book-Bot repository directory.
+Run package commands from `DiscordBots/BookBot`. This is the canonical BookBot
+package inside the DiscordBots monorepo. Run commands involving
+`ecosystem.config.js` from the DiscordBots root.
 
 ## Deploy changes to the existing bot
 
@@ -27,13 +29,15 @@ Restart the existing process. Use the first-start command below only when `book-
 
 ## What the restart deploys
 
-The existing process runs `npm run cleanrun`, so restarting performs these steps automatically:
+The existing process runs `npm run cleanrun`, which calls the shared
+`scripts/run-bot.sh BookBot`. It takes a repository-wide deployment lock so both
+bots can start safely together at boot. Restarting performs these steps:
 
-1. `git pull` fetches and integrates the latest changes from the configured upstream.
+1. `git pull --ff-only` fetches the shared repository's configured upstream.
 2. `rm -rf dist` removes the previous compiled output.
 3. `npm run build` compiles TypeScript.
 4. `npm run deploy-commands` registers Discord commands.
-5. `node dist/index.js` runs the updated bot.
+5. The shared lock is released and `node dist/index.js` runs the updated bot.
 
 Local source edits in this checkout are included in the rebuild if the pull succeeds; committing and pushing those edits is not a prerequisite for local deployment. Changes made in another checkout must be committed and pushed to the branch this bot pulls. Use the known working-tree state, or check `git status --short` if it is unknown.
 
@@ -61,9 +65,11 @@ Expect Book Bot to be offline from 2:00 AM Central until startup completes after
 When no `book-bot` PM2 process exists:
 
 ```bash
-pm2 start npm --name book-bot -- run cleanrun
+pm2 start ecosystem.config.js --only book-bot
 ```
 
-For an explicitly requested first start of the separate StrengthBot project, run `pm2 start npm --name strengthbot -- run cleanrun` from its own repository.
+Run this command from the DiscordBots root. After intentionally changing process
+paths, run `pm2 save` so reboot restores the new configuration. For an explicitly
+requested first start of StrengthBot, use `--only strengthbot` from the same root.
 
 Creating or editing this skill does not request a live deployment. Run the workflow when the user asks to start, restart, or deploy the bot.

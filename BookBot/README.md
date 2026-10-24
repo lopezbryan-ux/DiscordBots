@@ -1,5 +1,12 @@
 # Book-Bot
+
 Bot for my friends to use to view, store, nominate our books
+
+This package lives in `DiscordBots/BookBot`. Run package commands from this
+directory, or use root commands such as `npm run build:bookbot` and
+`npm run test:bookbot`. Start with `cp .env.example .env`, fill in the local
+credentials and server IDs, and keep that file private. Dependencies and builds
+remain local to this package.
 
 To register slash commands in multiple servers, set `GUILD_IDS` in `.env` to a comma-separated list of server IDs. Invite and authorize Book-Bot in each server before deploying. `GUILD_IDS` takes precedence over the legacy single-server `GUILD_ID` setting. Restart the running bot using `SKILL.md` to rebuild and register commands in every configured server.
 
