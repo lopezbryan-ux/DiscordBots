@@ -79,6 +79,26 @@ Save the PM2 process list with `pm2 save` after verifying a first start or an
 intentional process-path change. An enabled PM2 system service restores the
 saved processes at boot.
 
+Because startup pulls from GitHub and registers Discord commands, order the PM2
+boot service after `network-online.target`, with the host's network wait service
+enabled. The Pi uses NetworkManager's enabled wait-online service. The
+[systemd drop-in template](deploy/pm2-network-online.conf) adds the required
+`Wants` and `After` settings. Install it through `sudo systemctl edit` for the
+host's PM2 service, then run `sudo systemctl daemon-reload` and verify the
+effective service dependencies. `network.target` alone does not wait for a
+configured connection; see [systemd's network guidance](https://systemd.io/NETWORK_ONLINE/).
+The bots still need GitHub, Discord, and their database endpoints reachable to
+complete startup.
+
+To test the saved restoration mechanism without rebooting the Pi, restart the
+PM2 systemd service during an approved interruption. This restarts every app in
+its saved list. Verify the service is active and each bot has a fresh process,
+the correct working directory, a successful build and command registration, and
+a new Discord ready event before saving the process list. PM2 showing `online`
+alone does not prove a bot has finished connecting. A service restart tests PM2
+restoration; a complete power-cycle test also exercises hardware and network
+startup.
+
 When deliberately moving an existing bot to another checkout, verify the new
 package's build and local configuration first and back up the saved PM2 list
 under an ignored local directory. On this host, an ecosystem-file restart
