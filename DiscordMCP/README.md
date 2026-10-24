@@ -1,6 +1,11 @@
 # Discord Permissions MCP
 
-A local MCP server for inspecting Discord roles, channels, and effective permissions. It runs independently of StrengthBot and Book-Bot and makes **GET requests only**. It does not connect to the Discord gateway, read messages, or change server configuration.
+A local MCP server for inspecting Discord roles, channels, and effective permissions. It runs independently of StrengthBot and BookBot and makes **GET requests only**. It does not connect to the Discord gateway, read messages, or change server configuration.
+
+This package lives in `DiscordBots/DiscordMCP`, alongside `StrengthBot` and
+`BookBot`. It keeps its own dependencies, build, and ignored configuration.
+See the [monorepo guide](../README.md) for root installation, build, and test
+commands. Run the setup commands below from the DiscordBots root.
 
 ## Tools
 
@@ -29,6 +34,16 @@ chmod 600 .env
 Set `DISCORD_ALLOWED_GUILDS` to the comma-separated IDs of servers this MCP may inspect. It is required: omitted, empty, and wildcard values are rejected. The bot must already be a member of each server.
 
 Provide either `DISCORD_BOT_TOKEN` in the ignored `.env`, or set `DISCORD_ENV_FILE` to the absolute path of an existing bot's `.env` containing `DISCORD_TOKEN` or `DISCORD_BOT_TOKEN`. The external file is read without importing its other variables into the process environment. No additional bot invitation or privileged gateway intents are needed to inspect a server where that bot already has access.
+
+To reuse the sibling BookBot package's credentials, point the local setting at
+the monorepo checkout, for example:
+
+```dotenv
+DISCORD_ENV_FILE=/absolute/path/to/DiscordBots/BookBot/.env
+```
+
+Use the canonical `BookBot/.env` in this checkout when retaining a standalone
+Book-Bot checkout for rollback.
 
 The configuration file defaults to `DiscordMCP/.env`, resolved relative to the built executable rather than the caller's current directory. `DISCORD_MCP_CONFIG` can select another file. Process environment variables override local configuration; an explicit token overrides an external token.
 

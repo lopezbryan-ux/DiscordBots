@@ -4,9 +4,22 @@ Bot for my friends to use to view, store, nominate our books
 
 This package lives in `DiscordBots/BookBot`. Run package commands from this
 directory, or use root commands such as `npm run build:bookbot` and
-`npm run test:bookbot`. Start with `cp .env.example .env`, fill in the local
-credentials and server IDs, and keep that file private. Dependencies and builds
-remain local to this package.
+`npm run test:bookbot`. See the [monorepo guide](../README.md) for shared setup
+and PM2 configuration. Dependencies and builds remain local to this package.
+
+For a new checkout, install the locked dependencies and create the local
+configuration:
+
+```bash
+npm ci
+cp .env.example .env
+chmod 600 .env
+```
+
+Fill in the bot token, application ID, MongoDB connection, and server IDs before
+building or deploying. The template IDs are fictional. To build and run the
+offline tests, use `npm run build` and `npm test`. Follow the
+[deployment workflow](SKILL.md) to start or restart the live bot.
 
 To register slash commands in multiple servers, set `GUILD_IDS` in `.env` to a comma-separated list of server IDs. Invite and authorize Book-Bot in each server before deploying. `GUILD_IDS` takes precedence over the legacy single-server `GUILD_ID` setting. Restart the running bot using `SKILL.md` to rebuild and register commands in every configured server.
 

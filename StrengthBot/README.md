@@ -2,6 +2,10 @@
 
 Bot for my friends to log workouts, track strength progress, and compare lifts through Discord. Built with TypeScript, Discord.js, and MongoDB, and hosted on a Raspberry Pi.
 
+This package lives in `DiscordBots/StrengthBot`. Run the commands below from
+this package directory. The [monorepo guide](../README.md) covers root commands
+such as `npm run build:strengthbot` and the shared PM2 configuration.
+
 Use `/help` to browse six command categories: General, Body Weight, Measurements, Lifting, Progress, and Cardio. Previous and Next move between pages. Only the member who opened the menu can use its buttons, and the controls expire after two minutes.
 
 Use `/loglift compound`, `/loglift isolation`, or `/loglift armwrestling` to save a lift. Choose an exercise, enter the amount lifted and your body weight in pounds, and optionally add `additionaldetails`. Each entry saves the date and returns a log ID. Your first entry establishes a starting personal record; a heavier entry highlights the new PR and how much it increased.
@@ -32,10 +36,15 @@ To remove an entry, copy its ID from the corresponding view and use `/removelift
 
 Use `/askstrengthbot question:...` to ask a fitness or strength question. Questions can contain up to 500 characters. Replies come through Hugging Face's inference router and are kept short; this command sends your question without attaching your saved workout history. Progress charts, weekly weight charts, and the strength standards table use QuickChart.
 
-For setup, run commands from the `StrengthBot` directory and create a `.env` file containing `DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, `MONGODB_URI`, and `HF_TOKEN`. Keep credentials out of Git. Workout data is stored in the MongoDB database `StrengthBotDb`.
+For setup, create a local `.env` containing `DISCORD_TOKEN`, `CLIENT_ID`,
+`MONGODB_URI`, `HF_TOKEN`, and `GUILD_IDS`. Set `GUILD_IDS` to the comma-separated
+IDs of servers that have authorized this bot. It takes precedence over the
+legacy single-server `GUILD_ID` setting. Keep credentials out of Git and give
+the file mode `600` on the Pi. Workout data is stored in the MongoDB database
+`StrengthBotDb`.
 
 ```bash
-npm install
+npm ci
 npm run build
 npm run deploy-commands
 npm start

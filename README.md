@@ -75,8 +75,24 @@ Node.js on the Pi. A failed pull, build, or registration stops that launch.
 
 Commit and push changes before deploying them from another checkout. A pull
 updates the whole repository; restarting one bot builds and runs that package.
-Save the PM2 process list with `pm2 save` after intentionally changing process
-paths. An enabled PM2 system service restores the saved processes at boot.
+Save the PM2 process list with `pm2 save` after verifying a first start or an
+intentional process-path change. An enabled PM2 system service restores the
+saved processes at boot.
+
+When deliberately moving an existing bot to another checkout, verify the new
+package's build and local configuration first and back up the saved PM2 list
+under an ignored local directory. On this host, an ecosystem-file restart
+retained the old working directory. Remove only the affected process entry and
+start it from the root configuration to apply the new path:
+
+```bash
+pm2 delete book-bot
+pm2 start ecosystem.config.js --only book-bot
+```
+
+Confirm the process uses the new working directory and reaches Discord's ready
+event before running `pm2 save`. Routine updates at the same path continue to
+use `pm2 restart book-bot`.
 
 DiscordMCP stays registered with its MCP client using its compiled entry point.
 It is launched by the client when connecting. When reusing BookBot credentials,
