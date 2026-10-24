@@ -1,6 +1,8 @@
 # Book-Bot
 Bot for my friends to use to view, store, nominate our books
 
+To register slash commands in multiple servers, set `GUILD_IDS` in `.env` to a comma-separated list of server IDs. Invite and authorize Book-Bot in each server before deploying. `GUILD_IDS` takes precedence over the legacy single-server `GUILD_ID` setting. Restart the running bot using `SKILL.md` to rebuild and register commands in every configured server. Books, ratings, nominations, and polls stay scoped to the server where they were created.
+
 `/book-list` shows up to 10 books per page, with newest added first by default. Use Previous and Next to browse the full library, and the sort menu to rearrange it. Changing the sort starts at page 1.
 
 Use `/update-book` to change an existing book's title, author, or cover image. Choose the book from the `title` suggestions, then provide `new-title`, `author`, `image-url`, or any combination. Omitted fields keep their current values. Title changes preserve the book's ID, ratings, reviews, and rating timestamps.
