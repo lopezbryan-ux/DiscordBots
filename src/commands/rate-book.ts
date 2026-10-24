@@ -1,3 +1,4 @@
+import { getLibraryGuildId } from '../library-scope.js';
 import { AutocompleteInteraction, ChatInputCommandInteraction, MessageFlags, SlashCommandBuilder } from 'discord.js';
 import { buildBookRatingEmbed } from '../book-embeds.js';
 import { findBookByInput, formatBookTitle, getBookClubCollections } from '../book-club.js';
@@ -44,7 +45,7 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
   const query = focusedValue
     ? {
         documentType: 'book' as const,
-        guildId: interaction.guildId,
+        guildId: getLibraryGuildId(interaction.guildId),
         $or: [
           { title: { $regex: escapeRegex(focusedValue), $options: 'i' } },
           { author: { $regex: escapeRegex(focusedValue), $options: 'i' } },
@@ -52,7 +53,7 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
       }
     : {
         documentType: 'book' as const,
-        guildId: interaction.guildId,
+        guildId: getLibraryGuildId(interaction.guildId),
       };
 
   const availableBooks = await books.find(query).collation({ locale: "en", strength: 2 }).sort({ title: 1 }).limit(25).toArray();
@@ -87,7 +88,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   await ratings.updateOne(
     {
       documentType: 'rating',
-      guildId: interaction.guildId,
+      guildId: getLibraryGuildId(interaction.guildId),
       userId: interaction.user.id,
       bookId: book._id,
     },
@@ -100,7 +101,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         normalizedTitle: book.normalizedTitle,
         rating,
         review: review || null,
-        guildId: interaction.guildId,
+        guildId: getLibraryGuildId(interaction.guildId),
         channelId: interaction.channelId,
         userId: interaction.user.id,
         username: interaction.user.username,

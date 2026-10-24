@@ -356,3 +356,46 @@ test("a poll ID from another server cannot accept a vote", async () => {
   assert.match(request.response.content, /Voting has ended/);
   assert.deepEqual(poll().votes, {});
 });
+
+for (const alreadyInLibrary of [false, true]) {
+  test(`linked library polls ${alreadyInLibrary ? "reuse an existing book" : "add their winner"} while voting and announcements stay local`, async () => {
+    const owner = "100000000000000002";
+    const linked = "100000000000000003";
+    const originalAliases = process.env.BOOK_LIBRARY_ALIASES;
+    process.env.BOOK_LIBRARY_ALIASES = JSON.stringify({ [linked]: owner });
+    try {
+      poll().guildId = linked;
+      if (alreadyInLibrary) store.state.books.push({
+        _id: "preserved-book-id", documentType: "book", guildId: owner, title: "Book A", normalizedTitle: "book a",
+      });
+      store.state.nominations.forEach(nomination => { nomination.guildId = linked; });
+      const foreignNomination = { ...store.state.nominations[0], guildId: owner };
+      store.state.nominations.push(foreignNomination);
+      const fetchedChannels = [];
+      const fetch = client.channels.fetch;
+      client.channels.fetch = async channelId => { fetchedChannels.push(channelId); return fetch(channelId); };
+
+      const foreignVote = interaction({ guildId: owner, customId: buildPollCustomId(poll().pollId, optionId(0), 0) });
+      await handleBookPollVote(foreignVote);
+      assert.deepEqual(poll().votes, {});
+      const foreignClose = await closeActiveBookPolls({ client, guildId: owner, addWinners: true });
+      assert.equal(foreignClose.closedCount, 0);
+      const localVote = interaction({ guildId: linked, customId: buildPollCustomId(poll().pollId, optionId(0), 0) });
+      await handleBookPollVote(localVote);
+      assert.deepEqual(poll().votes, { voter: 0 });
+      const result = await close();
+      assert.equal(result.closedCount, 1);
+      assert.equal(store.state.books.length, 1);
+      assert.equal(store.state.books[0].guildId, owner);
+      assert.equal(store.state.books[0].title, "Book A");
+      if (alreadyInLibrary) assert.equal(store.state.books[0]._id, "preserved-book-id");
+      assert.equal(poll().guildId, linked);
+      assert.deepEqual(store.state.nominations, [foreignNomination]);
+      assert.equal(announcements.length, 1);
+      assert.ok(fetchedChannels.every(channelId => channelId === poll().channelId));
+    } finally {
+      if (originalAliases === undefined) delete process.env.BOOK_LIBRARY_ALIASES;
+      else process.env.BOOK_LIBRARY_ALIASES = originalAliases;
+    }
+  });
+}

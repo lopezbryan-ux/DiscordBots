@@ -1,3 +1,4 @@
+import { getLibraryGuildId } from "./library-scope.js";
 import { AttachmentBuilder, Client, EmbedBuilder } from "discord.js";
 import { formatBookTitle, getBookClubCollections, PollDocument } from "./book-club.js";
 import { getValidPollVotes, getWinningOptions, refreshPollMessage } from "./polls.js";
@@ -293,11 +294,11 @@ export async function closeActiveBookPolls(options: CloseActiveBookPollsOptions)
 
       if (winner && addWinners) {
         await books.updateOne(
-          { documentType: "book", guildId: poll.guildId, normalizedTitle: winner.normalizedTitle },
+          { documentType: "book", guildId: getLibraryGuildId(poll.guildId), normalizedTitle: winner.normalizedTitle },
           {
             $set: {
               documentType: "book",
-              guildId: poll.guildId,
+              guildId: getLibraryGuildId(poll.guildId),
               title: winner.title,
               normalizedTitle: winner.normalizedTitle,
               author: winner.author,

@@ -1,3 +1,4 @@
+import { getLibraryGuildId } from "../library-scope.js";
 import { AutocompleteInteraction, ChatInputCommandInteraction, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { findBookByInput, formatBookTitle, getBookClubCollections } from "../book-club.js";
 import { BOOK_BOT_COLLECTION_NAME, BOOK_BOT_DB_NAME, mongoClient } from "../mongo.js";
@@ -28,7 +29,7 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
   const query = focusedValue
     ? {
         documentType: "book" as const,
-        guildId: interaction.guildId,
+        guildId: getLibraryGuildId(interaction.guildId),
         $or: [
           { title: { $regex: escapeRegex(focusedValue), $options: "i" } },
           { author: { $regex: escapeRegex(focusedValue), $options: "i" } },
@@ -36,7 +37,7 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
       }
     : {
         documentType: "book" as const,
-        guildId: interaction.guildId,
+        guildId: getLibraryGuildId(interaction.guildId),
       };
 
   const availableBooks = await books.find(query).collation({ locale: "en", strength: 2 }).sort({ title: 1 }).limit(25).toArray();
@@ -65,7 +66,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   const ratings = mongoClient.db(BOOK_BOT_DB_NAME).collection(BOOK_BOT_COLLECTION_NAME);
   const ratingCount = await ratings.countDocuments({
     documentType: "rating",
-    guildId: interaction.guildId,
+    guildId: getLibraryGuildId(interaction.guildId),
     bookId: book._id,
   });
 
@@ -81,7 +82,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
   await books.deleteOne({
     documentType: "book",
-    guildId: interaction.guildId,
+    guildId: getLibraryGuildId(interaction.guildId),
     _id: book._id,
   });
   invalidateRatingViewsCache(interaction.guildId);

@@ -1,3 +1,4 @@
+import { getLibraryGuildId } from "./library-scope.js";
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -137,7 +138,7 @@ export async function buildBookListMessage(
 ) {
   const { books } = getBookClubCollections();
   const sortOption = bookListSorts[selectedSort];
-  const filter = { documentType: "book" as const, guildId };
+  const filter = { documentType: "book" as const, guildId: getLibraryGuildId(guildId) };
   const totalBooks = await books.countDocuments(filter);
   if (totalBooks === 0) {
     return null;

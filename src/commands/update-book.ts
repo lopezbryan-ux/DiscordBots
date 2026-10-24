@@ -1,3 +1,4 @@
+import { getLibraryGuildId } from "../library-scope.js";
 import { AutocompleteInteraction, ChatInputCommandInteraction, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { buildBookAddedEmbed } from "../book-embeds.js";
 import { findBookByInput, formatBookTitle, getBookClubCollections, getImageUrlOrNull, normalizeTitle } from "../book-club.js";
@@ -46,7 +47,7 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
   const availableBooks = await books
     .find({
       documentType: "book",
-      guildId: interaction.guildId,
+      guildId: getLibraryGuildId(interaction.guildId),
       ...(focusedValue
         ? {
             $or: [
@@ -98,7 +99,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   const ratings = mongoClient.db(BOOK_BOT_DB_NAME).collection(BOOK_BOT_COLLECTION_NAME);
   const result = await mongoClient.withSession((session) =>
     session.withTransaction(async () => {
-      const bookFilter = { documentType: "book" as const, guildId: interaction.guildId };
+      const bookFilter = { documentType: "book" as const, guildId: getLibraryGuildId(interaction.guildId) };
       const book = await findBookByInput(interaction.guildId, titleInput, session);
 
       if (!book) {
@@ -135,7 +136,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       if (titleChanged || authorChanged) {
         // Preserve each member's score, review, and original rating timestamps.
         await ratings.updateMany(
-          { documentType: "rating", guildId: interaction.guildId, bookId: book._id },
+          { documentType: "rating", guildId: getLibraryGuildId(interaction.guildId), bookId: book._id },
           {
             $set: {
               ...(titleChanged ? { bookTitle: title, normalizedTitle } : {}),

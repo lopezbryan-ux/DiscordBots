@@ -1,3 +1,4 @@
+import { getLibraryGuildId } from "./library-scope.js";
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -144,6 +145,7 @@ export function isBookLeaderboardRanking(value: string): value is BookLeaderboar
 }
 
 export function invalidateRatingViewsCache(guildId: string | null) {
+  guildId = getLibraryGuildId(guildId);
   bookLeaderboardCache.delete(guildId);
   bookNavigationCache.delete(guildId);
 }
@@ -157,6 +159,7 @@ export function isBookReviewsBookCustomId(customId: string) {
 }
 
 export async function getBookRatingSummary(guildId: string | null, bookId: ObjectId) {
+  guildId = getLibraryGuildId(guildId);
   const ratings = mongoClient.db(BOOK_BOT_DB_NAME).collection<RatingDocument>(BOOK_BOT_COLLECTION_NAME);
   const result = await ratings
     .aggregate<{ averageRating: number; ratingCount: number }>([
@@ -184,6 +187,7 @@ export async function getBookRatingSummary(guildId: string | null, bookId: Objec
 }
 
 export async function buildRatingListMessage(guildId: string | null, userId: string, userLabel: string, page: number) {
+  guildId = getLibraryGuildId(guildId);
   const ratings = mongoClient.db(BOOK_BOT_DB_NAME).collection<RatingDocument>(BOOK_BOT_COLLECTION_NAME);
   const totalRatings = await ratings.countDocuments({
     documentType: "rating",
@@ -365,6 +369,7 @@ async function loadBookLeaderboardEntries(
 }
 
 async function getBookLeaderboardEntries(guildId: string | null, ranking: BookLeaderboardRanking) {
+  guildId = getLibraryGuildId(guildId);
   const now = Date.now();
   let guildCache = bookLeaderboardCache.get(guildId);
   const cachedLeaderboard = guildCache?.get(ranking);
@@ -484,6 +489,7 @@ async function loadBookNavigation(guildId: string | null): Promise<BookNavigatio
 }
 
 async function getBookNavigation(guildId: string | null) {
+  guildId = getLibraryGuildId(guildId);
   const now = Date.now();
   const cachedBooks = bookNavigationCache.get(guildId);
 
@@ -509,6 +515,7 @@ async function getBookNavigation(guildId: string | null) {
 }
 
 export async function buildBookReviewsMessage(guildId: string | null, bookId: string, page: number) {
+  guildId = getLibraryGuildId(guildId);
   if (!ObjectId.isValid(bookId)) {
     return { embeds: [], components: [], totalRatings: 0, book: null };
   }

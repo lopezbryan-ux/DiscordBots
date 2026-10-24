@@ -1,3 +1,4 @@
+import { getLibraryGuildId } from "./library-scope.js";
 import { ObjectId, type ClientSession } from "mongodb";
 import {
   BOOK_BOT_COLLECTION_NAME,
@@ -111,7 +112,7 @@ export function getBookClubCollections() {
 export async function findBookByInput(guildId: string | null, input: string, session?: ClientSession) {
   const { books } = getBookClubCollections();
   const titleInput = input.trim();
-  const scope = { documentType: "book" as const, guildId };
+  const scope = { documentType: "book" as const, guildId: getLibraryGuildId(guildId) };
   const options = session ? { session } : {};
   if (ObjectId.isValid(titleInput)) {
     return books.findOne({ ...scope, _id: new ObjectId(titleInput) }, options);

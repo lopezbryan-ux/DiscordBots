@@ -8,12 +8,15 @@ const { findBookByInput } = await import("../dist/book-club.js");
 const commands = Object.fromEntries(await Promise.all([
   "rate-book", "view-rating", "remove-rating", "delete-book", "book-reviews", "update-book",
 ].map(async (name) => [name, await import(`../dist/commands/${name}.js`)])));
+const addBook = await import("../dist/commands/add-book.js");
+const { buildBookListMessage } = await import("../dist/book-list-view.js");
 const {
   buildBookReviewsMessage, buildRatingListMessage, buildBookLeaderboardMessage,
   getBookRatingSummary, invalidateRatingViewsCache,
 } = await import("../dist/rating-views.js");
 
-const guildId = "id-test";
+const guildId = "100000000000000002";
+const linkedGuildId = "100000000000000003";
 const bookId = new ObjectId("000000000000000000000001");
 const otherBookId = new ObjectId("000000000000000000000002");
 const foreignBookId = new ObjectId("000000000000000000000003");
@@ -114,6 +117,7 @@ before(() => {
   mongoClient.withSession = (callback) => callback({ withTransaction: (action) => action() });
 });
 beforeEach(() => {
+  process.env.BOOK_LIBRARY_ALIASES = JSON.stringify({ [linkedGuildId]: guildId });
   const book = {
     _id: bookId, documentType: "book", guildId, title: "Shared Title", normalizedTitle: "shared title",
     author: "First Author", imageUrl: "https://example.com/first.jpg", selectedAt: new Date("2025-01-01"),
@@ -142,9 +146,9 @@ after(async () => {
   await mongoClient.close();
 });
 
-async function execute(name, options = {}) {
+async function execute(name, options = {}, serverId = guildId) {
   const interaction = {
-    guildId, channelId: "channel", user: member,
+    guildId: serverId, channelId: "channel", user: member,
     options: {
       getString: (name) => options[name] ?? null,
       getNumber: (name) => options[name],
@@ -154,7 +158,7 @@ async function execute(name, options = {}) {
     async reply(message) { this.message = message; },
     async editReply(message) { this.message = message; },
   };
-  await commands[name].execute(interaction);
+  await (name === "add-book" ? addBook : commands[name]).execute(interaction);
   interaction.message.embeds?.forEach((embed) => embed.toJSON());
   return interaction.message;
 }
@@ -266,4 +270,77 @@ test("deletion checks protect rated books and delete only an unrated book with t
   await execute("delete-book", { title: otherBookId.toString() });
   assert.equal(documents.some((document) => document._id.equals(otherBookId)), false);
   assert.ok(documents.some((document) => document._id.equals(bookId)));
+});
+
+test("linked servers browse the same library and autocomplete while other libraries stay isolated", async () => {
+  for (const serverId of [guildId, linkedGuildId]) {
+    const list = await buildBookListMessage(serverId);
+    assert.equal(list.embeds[0].data.fields.length, 2);
+    assert.ok((await findBookByInput(serverId, bookId.toString()))._id.equals(bookId));
+    assert.equal(await findBookByInput(serverId, foreignBookId.toString()), null);
+    for (const command of Object.values(commands)) {
+      let choices;
+      await command.autocomplete({ guildId: serverId, options: { getFocused: () => "" },
+        async respond(response) { choices = response; } });
+      assert.deepEqual(choices.map(choice => choice.value).sort(), [bookId, otherBookId].map(id => id.toString()).sort());
+    }
+  }
+  assert.equal(await findBookByInput("other-server", bookId.toString()), null);
+  assert.equal(await buildBookListMessage("unlinked-empty-server"), null);
+});
+
+for (const serverId of [guildId, linkedGuildId]) {
+  test(`books added in ${serverId} can be edited and removed from its linked server`, async () => {
+    const otherServer = serverId === guildId ? linkedGuildId : guildId;
+    await execute("add-book", { title: "New Shared Book", author: "Shared Author" }, serverId);
+    const created = documents.find(document => document.title === "New Shared Book");
+    assert.equal(created.guildId, guildId);
+    assert.equal((await buildBookListMessage(otherServer)).embeds[0].data.fields.length, 3);
+    await execute("update-book", { title: created._id.toString(), "new-title": "Renamed Shared Book" }, otherServer);
+    assert.equal((await findBookByInput(serverId, created._id.toString())).title, "Renamed Shared Book");
+    await execute("delete-book", { title: created._id.toString() }, otherServer);
+    assert.equal(await findBookByInput(serverId, created._id.toString()), null);
+    assert.equal((await buildBookListMessage(serverId)).embeds[0].data.fields.length, 2);
+  });
+}
+
+test("rating from a linked server updates the existing account's rating and shares all rating views", async () => {
+  const original = { ...documents[3] };
+  await execute("rate-book", { title: bookId.toString(), rating: 10, review: "Updated from the second server." }, linkedGuildId);
+  assert.equal(documents.length, 7);
+  assert.ok(documents[3]._id.equals(original._id));
+  assert.equal(documents[3].createdAt, original.createdAt);
+  assert.equal(documents[3].guildId, guildId);
+  for (const serverId of [guildId, linkedGuildId]) {
+    assert.deepEqual(await getBookRatingSummary(serverId, bookId), { averageRating: 8.5, ratingCount: 2 });
+    const reviews = await execute("book-reviews", { title: bookId.toString() }, serverId);
+    assert.ok(reviews.embeds[0].data.fields.some(field => field.value.includes("Updated from the second server.")));
+    const rating = await execute("view-rating", { title: bookId.toString() }, serverId);
+    assert.equal(rating.embeds[0].data.fields.find(field => field.name === "Rating").value, "**10.0/10**");
+    assert.equal((await buildRatingListMessage(serverId, member.id, member.toString(), 0)).totalRatings, 2);
+    assert.equal((await buildBookLeaderboardMessage(serverId, 0)).totalBooks, 2);
+  }
+});
+
+test("removing ratings and protecting rated books work from the linked server", async () => {
+  const denied = await execute("delete-book", { title: bookId.toString() }, linkedGuildId);
+  assert.match(denied.content, /cannot delete/);
+  await execute("remove-rating", { title: bookId.toString() }, linkedGuildId);
+  assert.deepEqual(await getBookRatingSummary(guildId, bookId), { averageRating: 7, ratingCount: 1 });
+  assert.equal((await buildRatingListMessage(guildId, member.id, member.toString(), 0)).totalRatings, 1);
+  assert.equal(documents.filter(document => document.documentType === "rating" && document.guildId === "other-server").length, 1);
+});
+
+test("updates in either server invalidate the shared leaderboard and book navigation caches", async () => {
+  await buildBookLeaderboardMessage(linkedGuildId, 0);
+  await buildBookReviewsMessage(guildId, bookId.toString(), 0);
+  await execute("rate-book", { title: bookId.toString(), rating: 10 }, guildId);
+  const leaderboard = await buildBookLeaderboardMessage(linkedGuildId, 0);
+  assert.ok(leaderboard.embeds[0].data.fields.some(field => field.value.includes("8.5/10")));
+  await execute("add-book", { title: "Third Book" }, linkedGuildId);
+  const reviews = await buildBookReviewsMessage(guildId, bookId.toString(), 0);
+  assert.match(reviews.embeds[0].data.footer.text, /Book \d of 3/);
+  await execute("update-book", { title: bookId.toString(), "new-title": "Shared Corrected Title", author: "Updated Author" }, linkedGuildId);
+  const updated = await buildBookLeaderboardMessage(guildId, 0);
+  assert.ok(updated.embeds[0].data.fields.some(field => field.name.includes("Shared Corrected Title") && field.value.includes("Updated Author")));
 });

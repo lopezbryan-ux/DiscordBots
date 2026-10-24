@@ -1,3 +1,4 @@
+import { getLibraryGuildId } from "../library-scope.js";
 import { ChatInputCommandInteraction, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { buildBookAddedEmbed } from "../book-embeds.js";
 import { getBookClubCollections, getImageUrlOrNull, normalizeTitle } from "../book-club.js";
@@ -42,13 +43,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   const result = await books.updateOne(
     {
       documentType: "book",
-      guildId: interaction.guildId,
+      guildId: getLibraryGuildId(interaction.guildId),
       normalizedTitle: normalizeTitle(title),
     },
     {
       $set: {
         documentType: "book",
-        guildId: interaction.guildId,
+        guildId: getLibraryGuildId(interaction.guildId),
         title,
         normalizedTitle: normalizeTitle(title),
         author,

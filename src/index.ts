@@ -1,3 +1,4 @@
+import { getLibraryGuildId } from './library-scope.js';
 import {
   AutocompleteInteraction,
   ChatInputCommandInteraction,
@@ -111,6 +112,7 @@ function getCommand(commandModule: Record<string, unknown>): Command | undefined
 }
 
 (async () => {
+  getLibraryGuildId(null); // Validate library configuration before connecting to Discord.
   await ensureRatingBookIdIndex();
   const commandsPath = path.join(__dirname, 'commands');
   const commandFiles = getAllCommandFiles(commandsPath);

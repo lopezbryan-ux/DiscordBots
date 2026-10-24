@@ -1,7 +1,15 @@
 # Book-Bot
 Bot for my friends to use to view, store, nominate our books
 
-To register slash commands in multiple servers, set `GUILD_IDS` in `.env` to a comma-separated list of server IDs. Invite and authorize Book-Bot in each server before deploying. `GUILD_IDS` takes precedence over the legacy single-server `GUILD_ID` setting. Restart the running bot using `SKILL.md` to rebuild and register commands in every configured server. Books, ratings, nominations, and polls stay scoped to the server where they were created.
+To register slash commands in multiple servers, set `GUILD_IDS` in `.env` to a comma-separated list of server IDs. Invite and authorize Book-Bot in each server before deploying. `GUILD_IDS` takes precedence over the legacy single-server `GUILD_ID` setting. Restart the running bot using `SKILL.md` to rebuild and register commands in every configured server.
+
+Libraries are separate by default. To share an existing library, set `BOOK_LIBRARY_ALIASES` in `.env` to a JSON object mapping each linked server to the server that owns the existing books and ratings. For example:
+
+```dotenv
+BOOK_LIBRARY_ALIASES={"100000000000000003":"100000000000000002"}
+```
+
+Both servers then use the owner's existing book IDs, ratings, reviews, and leaderboards. Adding, editing, rating, or removing a book or rating in either server updates that same library. Existing deletion protection for rated books still applies. Cached views refresh for both servers after changes. Polls, nominations, votes, and announcements stay in their original server; poll winners are saved to the shared library. Servers absent from the mapping keep separate libraries. Map aliases directly to an owner without chains or cycles, and restart Book-Bot after changing configuration. Linking does not migrate records: use an empty secondary library, or merge any existing records before linking it.
 
 `/book-list` shows up to 10 books per page, with newest added first by default. Use Previous and Next to browse the full library, and the sort menu to rearrange it. Changing the sort starts at page 1.
 
