@@ -50,7 +50,7 @@ function isCommand(value: unknown): value is Command {
   return typeof value === 'object' && value !== null && 'data' in value && 'execute' in value;
 }
 
-(async () => {
+async function startBot() {
   const commandsPath = path.join(__dirname, 'commands');
   const commandFiles = getAllCommandFiles(commandsPath);
 
@@ -112,4 +112,9 @@ function isCommand(value: unknown): value is Command {
 
   // Log in to Discord with your client's token
   client.login(TOKEN);
-})();
+}
+
+// Importing the shared MongoDB client during command deployment must not log in a second bot.
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  void startBot();
+}
