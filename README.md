@@ -36,15 +36,14 @@ npm run build:strengthbot
 npm run build:mcp
 ```
 
-Run the root deployment tests and both package test suites:
+Run the root deployment tests and all package test suites:
 
 ```bash
 npm test
 ```
 
-StrengthBot currently has no automated test suite; its TypeScript build is part
-of `npm run build`. Individual package commands also work, for example
-`npm --prefix BookBot test`.
+Individual package commands also work, for example
+`npm --prefix StrengthBot test` or `npm --prefix BookBot test`.
 
 ## Deployment on the Pi
 

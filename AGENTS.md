@@ -7,7 +7,7 @@ and build output separate. Root scripts orchestrate the package commands.
 
 Read the package README and its agent or deployment instructions before editing
 it. Root `npm run build` builds all packages; root `npm test` runs deployment,
-BookBot, and DiscordMCP tests. StrengthBot currently has no test suite.
+StrengthBot, BookBot, and DiscordMCP tests.
 
 Keep tokens, real Discord IDs in examples, `.env` files, database snapshots,
 local reports, and PM2 dumps out of commits. Use fictional IDs in fixtures and

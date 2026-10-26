@@ -36,6 +36,21 @@ To remove an entry, copy its ID from the corresponding view and use `/removelift
 
 Use `/askstrengthbot question:...` to ask a fitness or strength question. Questions can contain up to 500 characters. Replies come through Hugging Face's inference router and are kept short; this command sends your question without attaching your saved workout history. Progress charts, weekly weight charts, and the strength standards table use QuickChart.
 
+To limit commands to one channel in a server, add a server-to-channel map to
+the local `.env` and restart StrengthBot. This example uses fictional IDs:
+
+```dotenv
+COMMAND_CHANNELS_BY_GUILD='{"100000000000000001":"100000000000000002"}'
+```
+
+Keys are server IDs and values are channel IDs. Every command checks the channel
+before its handler runs. Attempts elsewhere receive a private link to the allowed
+channel; this also applies to administrators and threads inside that channel.
+Servers omitted from the map keep their existing command access. Direct messages
+are rejected. Channel renames do not affect the restriction. Omit the setting to
+leave server commands unrestricted. Invalid maps stop startup with a configuration
+error. `npm test` builds and checks this behavior without contacting Discord.
+
 For setup, create a local `.env` containing `DISCORD_TOKEN`, `CLIENT_ID`,
 `MONGODB_URI`, `HF_TOKEN`, and `GUILD_IDS`. Set `GUILD_IDS` to the comma-separated
 IDs of servers that have authorized this bot. It takes precedence over the
