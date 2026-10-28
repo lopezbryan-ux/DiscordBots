@@ -1,22 +1,19 @@
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import { createServer } from "../dist/server.js";
-import { fixture, ids, overwrite } from "./fixture.mjs";
+import { ids, overwrite } from "./fixture.mjs";
 import { PermissionFlagsBits as P } from "discord.js";
+import { REST } from "discord.js";
+import { createSource } from "../dist/discord.js";
+import { commandFixture, commandApplication } from "./command-fixture.mjs";
+
+const mock = commandFixture();
+mock.state.channels[2].permission_overwrites.push(
+  overwrite(ids.member, 0n, P.ViewChannel, 1),
+);
+Object.assign(REST.prototype, mock.handlers);
 
 serveStdio(() =>
-  createServer({
-    guildIds: [ids.guild],
-    async snapshot(guildId) {
-      if (guildId !== ids.guild)
-        throw new Error("sensitive-token-must-not-escape");
-      const s = fixture();
-      s.channels[2].permission_overwrites.push(
-        overwrite(ids.member, 0n, P.ViewChannel, 1),
-      );
-      return s;
-    },
-    async member() {
-      return { roles: [ids.demon] };
-    },
-  }),
+  createServer(
+    createSource("fictional-fixture-token", [ids.guild], [commandApplication]),
+  ),
 );

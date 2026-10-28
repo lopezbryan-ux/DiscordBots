@@ -7,7 +7,7 @@ on a Raspberry Pi.
 | ------------------------------------ | ------------------------------------------------- | ------------------------- |
 | [StrengthBot](StrengthBot/README.md) | Workout logging, progress, and fitness commands   | PM2 `strengthbot`         |
 | [BookBot](BookBot/README.md)         | Book libraries, reviews, rankings, and club polls | PM2 `book-bot`            |
-| [DiscordMCP](DiscordMCP/README.md)   | Read-only inspection of Discord permissions       | Started by the MCP client |
+| [DiscordMCP](DiscordMCP/README.md)   | Inspect and manage Discord roles and channels       | Started by the MCP client |
 
 Each package has its own `package.json`, lockfile, `node_modules`, `.env`, and
 `dist` directory. Dependency versions and deployments remain independent.

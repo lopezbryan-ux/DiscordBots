@@ -1,17 +1,18 @@
 {
   "name": "discord-permissions-mcp",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "Local, read-only Discord role and channel permission inspection over MCP",
+  "description": "Local Discord role, channel, and permission inspection and management over MCP",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "npm run build && node --test test/*.test.mjs",
+    "test": "npm run build && node --test --test-concurrency=1 test/*.test.mjs",
     "test:live": "npm run build && node scripts/live-check.mjs",
+    "authorize:commands": "node scripts/authorize-commands.mjs",
     "format": "prettier --write src test scripts README.md package.json tsconfig.json",
     "format:check": "prettier --check src test scripts README.md package.json tsconfig.json"
   },

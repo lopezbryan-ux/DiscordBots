@@ -58,7 +58,7 @@ test("external bot credentials are loaded without changing process environment",
 test("upstream error details and credentials are never forwarded", () => {
   assert.equal(
     safeError(new Error("Authorization: Bot do-not-print-me")),
-    "Discord inspection failed. Check local configuration and connectivity.",
+    "Discord request failed. Check local configuration and connectivity; inspect the resource before retrying a write.",
   );
   assert.equal(
     safeError({ status: 403, message: "do-not-print-me" }),
@@ -105,4 +105,63 @@ test("snapshot and member retrieval only issue scoped GET requests", async (t) =
       `/guilds/${ids.guild}/members/${ids.member}`,
     ].sort(),
   );
+});
+
+test("per-application credentials are isolated, relative paths are resolved, and a missing OAuth file permits inspection", () => {
+  const dir = mkdtempSync(join(tmpdir(), "discord-command-config-"));
+  try {
+    writeFileSync(
+      join(dir, "bot.env"),
+      `CLIENT_ID=${ids.member}\nDISCORD_TOKEN=fictional-command-token\nMONGODB_URI=must-not-be-imported\n`,
+    );
+    writeFileSync(
+      join(dir, "oauth.env"),
+      "DISCORD_OAUTH_ACCESS_TOKEN=fictional-command-oauth\n",
+    );
+    const entries = [
+      {
+        applicationId: ids.member,
+        name: "Configured bot",
+        botEnvFile: "bot.env",
+        oauthEnvFile: "oauth.env",
+      },
+    ];
+    writeFileSync(join(dir, "apps.json"), JSON.stringify(entries));
+    const env = {
+      DISCORD_MCP_CONFIG: join(dir, "missing.env"),
+      DISCORD_BOT_TOKEN: "fictional-main-token",
+      DISCORD_ALLOWED_GUILDS: ids.guild,
+      DISCORD_COMMAND_APPLICATIONS_FILE: "apps.json",
+    };
+    const before = process.env.DISCORD_OAUTH_ACCESS_TOKEN;
+    const config = readConfig(env);
+    assert.equal(config.token, "fictional-main-token");
+    assert.deepEqual(config.applications, [
+      {
+        id: ids.member,
+        name: "Configured bot",
+        botToken: "fictional-command-token",
+        oauthToken: "fictional-command-oauth",
+      },
+    ]);
+    assert.equal(process.env.DISCORD_OAUTH_ACCESS_TOKEN, before);
+    entries[0].oauthEnvFile = "not-authorized-yet.env";
+    writeFileSync(join(dir, "apps.json"), JSON.stringify(entries));
+    assert.equal(readConfig(env).applications[0].oauthToken, undefined);
+    entries.push(entries[0]);
+    writeFileSync(join(dir, "apps.json"), JSON.stringify(entries));
+    assert.throws(
+      () => readConfig(env),
+      /Cannot load DISCORD_COMMAND_APPLICATIONS_FILE/,
+    );
+    entries.pop();
+    entries[0].applicationId = ids.owner;
+    writeFileSync(join(dir, "apps.json"), JSON.stringify(entries));
+    assert.throws(
+      () => readConfig(env),
+      /Cannot load DISCORD_COMMAND_APPLICATIONS_FILE/,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

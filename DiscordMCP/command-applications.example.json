@@ -1,0 +1,14 @@
+[
+  {
+    "applicationId": "100000000000000030",
+    "name": "Example fitness bot",
+    "botEnvFile": "/absolute/path/to/DiscordBots/StrengthBot/.env",
+    "oauthEnvFile": "strengthbot-oauth.env"
+  },
+  {
+    "applicationId": "100000000000000031",
+    "name": "Example reading bot",
+    "botEnvFile": "/absolute/path/to/DiscordBots/BookBot/.env",
+    "oauthEnvFile": "bookbot-oauth.env"
+  }
+]

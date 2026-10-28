@@ -4,8 +4,8 @@ import { createSource } from "./discord.js";
 import { createServer } from "./server.js";
 
 try {
-  const { token, guildIds } = readConfig();
-  const source = createSource(token, guildIds);
+  const { token, guildIds, applications } = readConfig();
+  const source = createSource(token, guildIds, applications);
   await serveStdio(() => createServer(source));
 } catch (error) {
   console.error(safeError(error));
