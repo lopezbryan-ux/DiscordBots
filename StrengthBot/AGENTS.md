@@ -10,14 +10,13 @@ Run these from `StrengthBot/`:
 
 - `npm ci` installs the locked dependencies.
 - `npm run build` compiles TypeScript.
-- `npm test` builds and checks command-channel restrictions offline.
 - `npm run format` formats source files; `npm run format:check` checks them.
 - `npm run deploy-commands` registers the compiled commands in configured servers.
 - `npm start` runs the compiled bot.
 
-There is currently no `lint` npm script in this package. From the repository
-root, `npm run build:strengthbot` builds this package and `npm test` runs the
-deployment, StrengthBot, BookBot, and DiscordMCP suites.
+There is currently no `lint` or `test` npm script in this package. From the
+repository root, `npm run build:strengthbot` builds this package and `npm test`
+runs the deployment, BookBot, and DiscordMCP suites.
 
 Keep credentials in the ignored package `.env`. Command deployment accepts
 comma-separated `GUILD_IDS`, with `GUILD_ID` as the legacy fallback. On Windows,

@@ -9,10 +9,9 @@
     "build:strengthbot": "npm --prefix StrengthBot run build",
     "build:bookbot": "npm --prefix BookBot run build",
     "build:mcp": "npm --prefix DiscordMCP run build",
-    "test": "npm run test:deployment && npm run test:strengthbot && npm run test:bookbot && npm run test:mcp",
+    "test": "npm run test:deployment && npm run test:bookbot && npm run test:mcp",
     "test:deployment": "node --test test/*.test.mjs",
     "test:bookbot": "npm --prefix BookBot test",
-    "test:mcp": "npm --prefix DiscordMCP test",
-    "test:strengthbot": "npm --prefix StrengthBot test"
+    "test:mcp": "npm --prefix DiscordMCP test"
   }
 }

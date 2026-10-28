@@ -9,10 +9,9 @@
     "start": "node dist/index.js",
     "dev": "tsc && node dist/index.js",
     "deploy-commands": "node dist/deploy-commands.js",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.mjs\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.mjs\"",
-    "cleanrun": "bash ../scripts/run-bot.sh StrengthBot",
-    "test": "npm run build && node --test test/*.test.mjs"
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "cleanrun": "bash ../scripts/run-bot.sh StrengthBot"
   },
   "author": "",
   "license": "MIT",

@@ -4,7 +4,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { MongoClient } from 'mongodb';
-import { executeInCommandChannel, parseCommandChannels } from './utils/commandChannels.js';
 // Create a new client instance
 interface Command {
   data: { name: string };
@@ -19,7 +18,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
-const commandChannels = parseCommandChannels(process.env.COMMAND_CHANNELS_BY_GUILD);
 
 // MongoDB client instance
 const mongoClient = new MongoClient(process.env.MONGODB_URI!);
@@ -74,11 +72,12 @@ async function startBot() {
   // Listen for interactions (slash commands)
   client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
+    console.log(interaction);
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
 
     try {
-      await executeInCommandChannel(interaction, commandChannels, () => command.execute(interaction));
+      await command.execute(interaction);
     } catch (error) {
       console.error(error);
       if (interaction.replied || interaction.deferred) {
