@@ -1,6 +1,7 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, MessageFlags, SlashCommandBuilder } from 'discord.js';
+import { APIError } from 'openai';
+import { getChatResponse } from '../../utils/aiUtils/chatProvider.js';
 
-const UNAVAILABLE_MESSAGE = "StrengthBot's AI chat is temporarily unavailable while we update the chat service. Thanks for your patience!";
 const MAX_QUESTION_LENGTH = 500;
 
 export default {
@@ -12,6 +13,28 @@ export default {
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.reply({ content: UNAVAILABLE_MESSAGE });
+    const question = interaction.options.getString('question', true).trim();
+    if (!question || question.length > MAX_QUESTION_LENGTH) {
+      await interaction.reply({ content: 'Please enter a fitness question between 1 and 500 characters.', flags: MessageFlags.Ephemeral });
+      return;
+    }
+
+    await interaction.deferReply();
+
+    let content: string;
+    try {
+      const response = await getChatResponse(question);
+      content = response.length > 2000 ? `${response.slice(0, 1997)}...` : response;
+    } catch (error) {
+      const status = error instanceof APIError ? error.status : undefined;
+      // Log only the status, never request headers, credentials, or user questions.
+      console.error('StrengthBot AI request failed:', status ? `Groq HTTP ${status}` : 'Chat service unavailable');
+      content =
+        status === 429
+          ? "StrengthBot's AI has reached its free usage limit. Please try again later."
+          : "StrengthBot's AI is unavailable right now. Please try again later.";
+    }
+
+    await interaction.editReply({ content, allowedMentions: { parse: [] } });
   },
 };

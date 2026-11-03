@@ -1,13 +1,22 @@
 import { OpenAI } from 'openai';
 
-const client = new OpenAI({
-  baseURL: 'https://router.huggingface.co/v1',
-  apiKey: process.env.HF_TOKEN,
-});
-
 export async function getChatResponse(userMessage: string) {
+  const apiKey = process.env.GROQ_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error('Set GROQ_API_KEY to enable AI chat.');
+  }
+
+  const client = new OpenAI({
+    baseURL: 'https://api.groq.com/openai/v1',
+    apiKey,
+    timeout: 20_000,
+    maxRetries: 0,
+  });
+
   const chatCompletion = await client.chat.completions.create({
-    model: 'deepseek-ai/DeepSeek-V4-Flash:novita',
+    model: 'openai/gpt-oss-20b',
+    reasoning_effort: 'low',
+    max_completion_tokens: 1024,
     messages: [
       {
         role: 'system',
@@ -17,9 +26,13 @@ export async function getChatResponse(userMessage: string) {
       { role: 'user', content: userMessage },
     ],
   });
-  let response = chatCompletion.choices[0].message.content || '';
+  let response = chatCompletion.choices[0]?.message.content || '';
   // Remove any reasoning or hidden thoughts (the stuff between <think>...</think>)
   response = response.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+  if (!response) {
+    throw new Error('Groq returned an empty response.');
+  }
 
   return response;
 }

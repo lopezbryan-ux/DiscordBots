@@ -34,10 +34,10 @@ Example: `/logcardio cardiotype:run bodyweight:180 time:25:30 distance:3`
 
 To remove an entry, copy its ID from the corresponding view and use `/removelift`, `/removebodyweightlog`, `/deletemeasurements`, or `/removecardio` with the `id` field. These commands remove only entries associated with your Discord username. Logs are currently associated with usernames rather than Discord user IDs, so changing your username affects which existing entries the bot finds.
 
-Use `/askstrengthbot question:...` to ask a fitness or strength question. Questions can contain up to 500 characters. Replies come through Hugging Face's inference router and are kept short; this command sends your question without attaching your saved workout history. Progress charts, weekly weight charts, and the strength standards table use QuickChart.
+Use `/askstrengthbot question:...` to ask a fitness or strength question. Questions can contain up to 500 characters. Replies use Groq's `openai/gpt-oss-20b` model and are kept short; this command sends your question without attaching your saved workout history. Groq's free plan has request and token limits; the command asks you to try again later if a limit is reached. Create a key in the [Groq console](https://console.groq.com/keys) and set `GROQ_API_KEY` in this package's `.env`, including on the Pi. Progress charts, weekly weight charts, and the strength standards table use QuickChart.
 
 For setup, create a local `.env` containing `DISCORD_TOKEN`, `CLIENT_ID`,
-`MONGODB_URI`, `HF_TOKEN`, and `GUILD_IDS`. Set `GUILD_IDS` to the comma-separated
+`MONGODB_URI`, `GROQ_API_KEY`, and `GUILD_IDS`. Set `GUILD_IDS` to the comma-separated
 IDs of servers that have authorized this bot. It takes precedence over the
 legacy single-server `GUILD_ID` setting. Keep credentials out of Git and give
 the file mode `600` on the Pi. Workout data is stored in the MongoDB database
