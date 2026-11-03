@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, MessageFlags, SlashCommandBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, EmbedBuilder, escapeMarkdown, MessageFlags, SlashCommandBuilder } from 'discord.js';
 import { APIError } from 'openai';
 import { getChatResponse } from '../../utils/aiUtils/chatProvider.js';
 
@@ -35,6 +35,12 @@ export default {
           : "StrengthBot's AI is unavailable right now. Please try again later.";
     }
 
-    await interaction.editReply({ content, allowedMentions: { parse: [] } });
+    const embed = new EmbedBuilder()
+      .setColor(0x4caf50)
+      .setTitle('Ask StrengthBot')
+      .setAuthor({ name: interaction.user.displayName, iconURL: interaction.user.displayAvatarURL() })
+      .setDescription(`**Question**\n${escapeMarkdown(question)}\n\n**Answer**\n${content}`);
+
+    await interaction.editReply({ embeds: [embed], allowedMentions: { parse: [] } });
   },
 };

@@ -9,14 +9,15 @@ export async function getChatResponse(userMessage: string) {
   const client = new OpenAI({
     baseURL: 'https://api.groq.com/openai/v1',
     apiKey,
-    timeout: 20_000,
+    timeout: 30_000,
     maxRetries: 0,
   });
 
   const chatCompletion = await client.chat.completions.create({
     model: 'openai/gpt-oss-20b',
-    reasoning_effort: 'low',
-    max_completion_tokens: 1024,
+    reasoning_effort: 'high',
+    // Leave room for reasoning as well as the short final answer.
+    max_completion_tokens: 4096,
     messages: [
       {
         role: 'system',
