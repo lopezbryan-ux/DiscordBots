@@ -18,7 +18,10 @@ export async function getChatResponse(userMessage: string) {
     reasoning_effort: 'high',
     // Leave room for reasoning as well as the final answer.
     max_completion_tokens: 4096,
-    messages: [{ role: 'user', content: userMessage }],
+    messages: [
+      { role: 'system', content: 'Answer in at most four sentences.' },
+      { role: 'user', content: userMessage },
+    ],
   });
   let response = chatCompletion.choices[0]?.message.content || '';
   // Remove any reasoning or hidden thoughts (the stuff between <think>...</think>)
