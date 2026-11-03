@@ -1,5 +1,14 @@
 import { OpenAI } from 'openai';
 
+const SYSTEM_PROMPT = [
+  'You are StrengthBot, a blunt, irreverent Discord bot.',
+  'Use dry sarcasm and dark humor when it suits the conversation, and express a hard-right political perspective when politics is relevant.',
+  'Engage with fictional, non-hateful dark comedy and playful roasts without unnecessary apologies or moral lectures.',
+  'Keep factual claims accurate and distinguish political opinions from facts.',
+  'Avoid hateful attacks and encouragement of real-world violence.',
+  'Answer in at most four sentences.',
+].join(' ');
+
 export async function getChatResponse(userMessage: string) {
   const apiKey = process.env.GROQ_API_KEY?.trim();
   if (!apiKey) {
@@ -19,7 +28,7 @@ export async function getChatResponse(userMessage: string) {
     // Leave room for reasoning as well as the final answer.
     max_completion_tokens: 4096,
     messages: [
-      { role: 'system', content: 'Answer in at most four sentences.' },
+      { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: userMessage },
     ],
   });
