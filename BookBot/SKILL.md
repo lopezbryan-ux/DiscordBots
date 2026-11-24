@@ -54,12 +54,12 @@ Confirm the latest startup completed the build, printed `Successfully reloaded a
 
 ## Daily availability
 
-- **Host shutdown: 2:00 AM every day, America/Chicago (Central Time).** Rechecked in root's crontab on 2026-11-24: `0 2 * * * /sbin/shutdown -h now`. The user confirmed keeping this time. This shuts down the Raspberry Pi host and takes both bots offline.
+- **Host shutdown: 3:00 AM every day, America/Chicago (Central Time).** Updated at the user's request and verified in root's crontab on 2026-11-24: `0 3 * * * /sbin/shutdown -h now`. This shuts down the Raspberry Pi host and takes both bots offline, allowing 15 minutes before the smart plug cuts power.
 - **Smart plug: turns off at 3:15 AM and on at 7:00 AM daily.** Both automations are enabled in the user's screenshot supplied on 2026-11-24. The screenshot does not display a timezone; the host uses America/Chicago. The plug schedule is separate from the host's shutdown job, and changing it does not change that job.
-- **Daylight saving time:** America/Chicago follows CST in winter and CDT in summer, so the host job remains at 2:00 AM local Central time. Root's crontab has no timezone override. The installed `cron(8)` documentation says fixed-time jobs skipped by the spring-forward clock change run soon after the change; the missing 2:00 AM shutdown therefore runs shortly after 3:00 AM that night. No manual one-hour adjustment is needed.
+- **Daylight saving time:** America/Chicago follows CST in winter and CDT in summer, so the host job remains at 3:00 AM local Central time. Root's crontab has no timezone override. No manual one-hour adjustment is needed.
 - **Bot startup after power-on:** the enabled `pm2-lopezb123.service` runs `pm2 resurrect` at boot, restoring the saved processes. Book Bot becomes available after boot and its build, command registration, and Discord login complete.
 
-The verified host shutdown still takes Book Bot offline at 2:00 AM Central, before the plug's 3:15 AM cutoff. It becomes available after the plug's 7:00 AM power-on and startup complete. A PM2 restart cannot turn on a powered-off host. Do not infer a changed host shutdown time from an updated smart-plug schedule; verify the host job separately.
+The verified host shutdown takes Book Bot offline at 3:00 AM Central, before the plug's 3:15 AM cutoff. It becomes available after the plug's 7:00 AM power-on and startup complete. A PM2 restart cannot turn on a powered-off host. Do not infer a changed host shutdown time from an updated smart-plug schedule; verify the host job separately.
 
 ## First start only
 
