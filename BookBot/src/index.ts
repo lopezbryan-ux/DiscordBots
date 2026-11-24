@@ -14,6 +14,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { mongoClient } from './mongo.js';
 import { ensureRatingBookIdIndex } from './book-ratings.js';
+import { ensureOpenBookPollIndex } from './book-club.js';
 import { checkBookPollSchedule } from './poll-scheduling.js';
 import {
   handleBookPollPage,
@@ -114,6 +115,7 @@ function getCommand(commandModule: Record<string, unknown>): Command | undefined
 (async () => {
   getLibraryGuildId(null); // Validate library configuration before connecting to Discord.
   await ensureRatingBookIdIndex();
+  await ensureOpenBookPollIndex();
   const commandsPath = path.join(__dirname, 'commands');
   const commandFiles = getAllCommandFiles(commandsPath);
 

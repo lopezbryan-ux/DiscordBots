@@ -150,5 +150,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   }
   await refreshPollMessage(interaction.client, result.poll);
   const imageText = imageUrl ? `\nCover: ${imageUrl}` : "";
-  await interaction.editReply(`${result.action} **${formatBookTitle(title, author)}**.${imageText}\n${result.pollText}`);
+  const rankedNote = result.poll.status === "nominating" && result.poll.pollType === "ranked"
+    ? " Ranked voting requires at least three nominations; otherwise this round closes without a vote."
+    : "";
+  await interaction.editReply(`${result.action} **${formatBookTitle(title, author)}**.${imageText}\n${result.pollText}${rankedNote}`);
 }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { isDeepStrictEqual } from "node:util";
+import { MongoServerError } from "mongodb";
 
 const clone = (value) => structuredClone(value);
 const get = (document, path) => path.split(".").reduce((value, key) => value?.[key], document);
@@ -137,7 +138,9 @@ export class PollStore {
     return {
       insertOne: async (document) => {
         assert.equal(kind, "poll");
-        assert.equal(this.state.poll.status, "closed");
+        if (["nominating", "active"].includes(this.state.poll.status)) {
+          throw new MongoServerError({ message: "duplicate open round", code: 11000 });
+        }
         this.mutate((state) => { state.poll = clone(document); });
         return { insertedId: document.pollId };
       },

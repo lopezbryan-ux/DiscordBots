@@ -57,6 +57,9 @@ export interface PollDocument {
   nominationsCloseAt?: Date | null;
   phaseAnnouncementPending?: boolean;
   messageRefreshPending?: boolean;
+  nominationCloseReason?: "empty" | "insufficient-ranked";
+  resultAnnouncementPending?: boolean;
+  resultAnnouncementPage?: number;
   pollType?: PollType;
   options: PollOption[];
   votes: PollVotes;
@@ -112,6 +115,15 @@ export function getBookClubCollections() {
     nominations: db.collection<NominationDocument>(BOOK_NOMINATIONS_COLLECTION_NAME),
     polls: db.collection<PollDocument>(BOOK_POLLS_COLLECTION_NAME),
   };
+}
+
+export async function ensureOpenBookPollIndex() {
+  const { polls } = getBookClubCollections();
+  await polls.createIndex({ guildId: 1 }, {
+    name: "one_open_book_poll_per_guild",
+    unique: true,
+    partialFilterExpression: { status: { $in: ["nominating", "active"] } },
+  });
 }
 
 export async function findBookByInput(guildId: string | null, input: string, session?: ClientSession) {

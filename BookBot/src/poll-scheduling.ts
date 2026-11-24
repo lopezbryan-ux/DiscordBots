@@ -1,37 +1,50 @@
 import { type Client } from "discord.js";
 import { getBookClubCollections } from "./book-club.js";
-import { closeOverdueBookPolls } from "./poll-closing.js";
+import { closeOverdueBookPolls, retryBookPollResults } from "./poll-closing.js";
+import { mongoClient } from "./mongo.js";
 import { POLL_STAGE_DURATION_MS } from "./poll-state.js";
 import { refreshPollMessage } from "./polls.js";
 
 export async function openDueBookPolls(client: Client, now = new Date()) {
-  const { polls } = getBookClubCollections();
+  const { polls, nominations } = getBookClubCollections();
   const due = await polls.find({ status: "nominating", nominationsCloseAt: { $type: "date", $lte: now } }).toArray();
   let openedCount = 0;
-  let emptyCount = 0;
+  let closedCount = 0;
   for (const candidate of due) {
     const empty = candidate.options.length === 0;
+    const insufficientRanked = candidate.pollType === "ranked" && candidate.options.length < 3;
+    const closeWithoutVoting = empty || insufficientRanked;
     // Comparing the options also protects against a nomination accepted while
     // this scan was in flight. A changed round is picked up on the next check.
-    const poll = await polls.findOneAndUpdate({
-      pollId: candidate.pollId,
-      guildId: candidate.guildId,
-      status: "nominating",
-      nominationsCloseAt: { $type: "date", $lte: now },
-      options: candidate.options,
-    }, {
-      $set: {
-        status: empty ? "closed" : "active",
-        // A restart after the nomination deadline still allows a full day to vote.
-        closesAt: empty ? null : new Date(now.getTime() + POLL_STAGE_DURATION_MS),
-        closedAt: empty ? now : null,
-        pollType: candidate.pollType === "ranked" && candidate.options.length >= 3 ? "ranked" : "regular",
-        updatedAt: now,
-        phaseAnnouncementPending: true,
-      },
-    }, { returnDocument: "after" });
+    const poll = await mongoClient.withSession((session) => session.withTransaction(async () => {
+      const transitioned = await polls.findOneAndUpdate({
+        pollId: candidate.pollId,
+        guildId: candidate.guildId,
+        status: "nominating",
+        nominationsCloseAt: { $type: "date", $lte: now },
+        options: candidate.options,
+      }, {
+        $set: {
+          status: closeWithoutVoting ? "closed" : "active",
+          // A restart after the nomination deadline still allows a full day to vote.
+          closesAt: closeWithoutVoting ? null : new Date(now.getTime() + POLL_STAGE_DURATION_MS),
+          closedAt: closeWithoutVoting ? now : null,
+          ...(closeWithoutVoting ? { nominationCloseReason: insufficientRanked ? "insufficient-ranked" as const : "empty" as const } : {}),
+          updatedAt: now,
+          phaseAnnouncementPending: true,
+          messageRefreshPending: true,
+        },
+      }, { returnDocument: "after", session });
+      if (transitioned && closeWithoutVoting) {
+        await nominations.deleteMany({
+          documentType: "nomination", guildId: candidate.guildId,
+          nominationId: { $in: candidate.options.map((option) => option.nominationId) },
+        }, { session });
+      }
+      return transitioned;
+    }, { readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } }));
     if (!poll) continue;
-    if (empty) emptyCount += 1;
+    if (closeWithoutVoting) closedCount += 1;
     else openedCount += 1;
   }
 
@@ -50,9 +63,10 @@ export async function openDueBookPolls(client: Client, now = new Date()) {
       if (!channel?.isTextBased() || !("send" in channel)) continue;
       const link = `https://discord.com/channels/${poll.guildId}/${poll.channelId}/${poll.messageId}`;
       const content = poll.status === "active"
-        ? `Nominations are closed! [Vote for our next book](${link}). Voting lasts 24 hours and closes <t:${Math.floor(poll.closesAt!.getTime() / 1000)}:f>.` +
-          (poll.options.length < 3 ? " With fewer than three nominations, choose one book." : "")
-        : "Book nominations closed with no books remaining, so no vote was opened. Use `/start-book-poll` to try again.";
+        ? `Nominations are closed! [Vote for our next book](${link}). Voting closes <t:${Math.floor(poll.closesAt!.getTime() / 1000)}:f>.`
+        : poll.nominationCloseReason === "insufficient-ranked"
+          ? "This ranked round closed with fewer than three nominations, so no vote was opened and no book was added. Use `/start-book-poll` to try again."
+          : "Book nominations closed with no books remaining, so no vote was opened. Use `/start-book-poll` to try again.";
       await channel.send({ content, allowedMentions: { parse: [] } });
       await polls.updateOne({ pollId: poll.pollId, guildId: poll.guildId, status: poll.status }, {
         $set: { phaseAnnouncementPending: false },
@@ -61,7 +75,7 @@ export async function openDueBookPolls(client: Client, now = new Date()) {
       console.error("Failed to announce a book poll stage; will retry:", error);
     }
   }
-  return { openedCount, emptyCount };
+  return { openedCount, closedCount };
 }
 
 // The startup pass and interval may overlap when Discord or MongoDB is slow.
@@ -71,6 +85,7 @@ export function checkBookPollSchedule(client: Client) {
   scheduledCheck = (async () => {
     await closeOverdueBookPolls(client);
     await openDueBookPolls(client);
+    await retryBookPollResults(client);
     const { polls } = getBookClubCollections();
     const pendingMessages = await polls.find({ messageRefreshPending: true }).toArray();
     for (const poll of pendingMessages) {

@@ -302,7 +302,7 @@ function buildParticipationText(poll: Pick<PollDocument, "options" | "pollType" 
 }
 
 export function buildPollEmbed(
-  poll: Pick<PollDocument, "closedAt" | "closesAt" | "nominationsCloseAt" | "options" | "pollId" | "pollType" | "votes" | "status">,
+  poll: Pick<PollDocument, "closedAt" | "closesAt" | "nominationsCloseAt" | "nominationCloseReason" | "options" | "pollId" | "pollType" | "votes" | "status">,
   page = 0,
 ) {
   const pollType = getPollType(poll);
@@ -316,14 +316,18 @@ export function buildPollEmbed(
     const waiting = poll.nominationsCloseAt == null;
     const expired = !waiting && poll.nominationsCloseAt!.getTime() <= Date.now();
     const instructions = expired
-      ? poll.options.length > 0
-        ? "Nominations are closed. Voting will open automatically shortly and last **24 hours**."
-        : "Nominations are closed. No books remain, so this round will close without a vote."
+      ? pollType === "ranked" && poll.options.length < 3
+        ? "Nominations are closed. Fewer than three books were nominated, so this ranked round will close without a vote."
+        : poll.options.length > 0
+          ? "Nominations are closed. Voting will open automatically shortly and last **24 hours**."
+          : "Nominations are closed. No books remain, so this round will close without a vote."
       : "Use `/nominate-book` to nominate or replace your book, or `/remove-nomination` to remove it. " +
         (waiting
           ? "The **first nomination** starts the **24-hour** nomination timer. "
           : "Nominations stay open until the deadline below; changes do not reset the timer. ") +
-        "Voting opens automatically afterward and lasts **24 hours**.";
+        (pollType === "ranked"
+          ? "With at least three nominations, voting opens automatically afterward and lasts **24 hours**."
+          : "Voting opens automatically afterward and lasts **24 hours**.");
     return new EmbedBuilder()
       .setColor(ACTIVE_POLL_COLOR)
       .setTitle(expired ? "📚  Nominations Closed" : "📚  Nominate Our Next Book")
@@ -339,7 +343,7 @@ export function buildPollEmbed(
         },
         {
           name: "🗳️  Voting",
-          value: `${votingStyle} · 24 hours` + (pollType === "ranked" ? "\nFewer than 3 nominations: pick one book." : ""),
+          value: `${votingStyle} · 24 hours` + (pollType === "ranked" ? "\nRequires 3 nominations; otherwise the round closes without voting." : ""),
           inline: true,
         },
         { name: "📚  Nominations", value: String(poll.options.length), inline: true },
@@ -351,7 +355,12 @@ export function buildPollEmbed(
     return new EmbedBuilder()
       .setColor(CLOSED_POLL_COLOR)
       .setTitle("📕  Book Nominations Closed")
-      .setDescription("This nomination round ended before voting opened. No book was added. Use `/start-book-poll` to start another round.")
+      .setDescription(
+        (poll.nominationCloseReason === "insufficient-ranked"
+          ? "This ranked round ended with fewer than three nominations, so voting did not open. "
+          : "This nomination round ended before voting opened. ") +
+        "No book was added. Use `/start-book-poll` to start another round.",
+      )
       .addFields({ name: "✅  Closed", value: formatPollCloseTime(poll.closedAt) })
       .setFooter({ text: footerText });
   }

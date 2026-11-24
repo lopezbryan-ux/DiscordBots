@@ -263,19 +263,50 @@ test("a slow Discord edit cannot clear the retry flag for a newer nomination", a
   assert.match(edits.at(-1).embeds[0].description, /Newer book title/);
 });
 
-test("the initial post catches a nomination submitted before its message ID was saved", async () => {
+test("the initial post catches a nomination submitted while its contents were being published", async () => {
   poll().status = "closed";
   store.state.nominations = [];
   const request = interaction({ userId: "creator" });
-  const fetchReply = request.fetchReply;
-  request.fetchReply = async () => {
+  const editReply = request.editReply.bind(request);
+  request.editReply = async (message) => {
     await nominate.execute(interaction({ userId: "member", strings: { title: "Quick nomination" } }));
-    return fetchReply();
+    return editReply(message);
   };
   await start.execute(request);
   assert.equal(poll().messageRefreshPending, false);
   assert.match(edits.at(-1).embeds[0].description, /Quick nomination/);
   assert.match(edits.at(-1).embeds[0].fields[0].value, /<t:/);
+});
+
+test("simultaneous starts handle the database uniqueness conflict without opening a second round", async () => {
+  poll().status = "closed";
+  const requests = [interaction({ userId: "member-one" }), interaction({ userId: "member-two" })];
+  await Promise.all(requests.map(request => start.execute(request)));
+  assert.equal(poll().createdBy, "member-one");
+  assert.equal(poll().status, "nominating");
+  assert.match(requests[1].response.content, /already a book poll/);
+});
+
+test("a failed initial publication retains the message ID and the scheduler repairs it", async () => {
+  poll().status = "closed";
+  const request = interaction();
+  request.editReply = async () => { throw new Error("initial Discord edit failed"); };
+  await assert.rejects(start.execute(request), /initial Discord edit failed/);
+  assert.equal(poll().messageId, "flow-message");
+  assert.equal(poll().messageRefreshPending, true);
+  await checkBookPollSchedule(client);
+  assert.equal(poll().messageRefreshPending, false);
+  assert.match(edits.at(-1).embeds[0].title, /Nominate Our Next Book/);
+});
+
+test("failure obtaining the deferred message does not save an invisible round", async () => {
+  poll().status = "closed";
+  const request = interaction();
+  request.fetchReply = async () => { throw new Error("reply unavailable"); };
+  await assert.rejects(start.execute(request), /reply unavailable/);
+  assert.equal(poll().status, "closed");
+  await start.execute(interaction());
+  assert.equal(poll().status, "nominating");
 });
 
 for (const status of ["active", "nominating"]) {
@@ -405,19 +436,47 @@ test("startup catches missed nomination deadlines and still gives a full voting 
 });
 
 for (const count of [0, 1, 2]) {
-  test(`a ranked round with ${count} nominations ${count ? "opens a regular vote" : "closes without a vote"}`, async () => {
+  test(`a ranked round with ${count} nominations closes without voting or adding a book`, async () => {
     nominationRound({ overdue: true, pollType: "ranked" });
     poll().options = poll().options.slice(0, count);
     store.state.nominations = store.state.nominations.slice(0, count);
     const result = await openDueBookPolls(client);
-    assert.equal(poll().status, count ? "active" : "closed");
-    assert.equal(count ? result.openedCount : result.emptyCount, 1);
-    assert.equal(poll().pollType, "regular");
+    assert.equal(poll().status, "closed");
+    assert.equal(result.closedCount, 1);
+    assert.equal(result.openedCount, 0);
+    assert.equal(poll().pollType, "ranked");
+    assert.equal(poll().closesAt, null);
+    assert.equal(store.state.nominations.length, 0);
+    assert.equal(store.state.books.length, 0);
     assert.equal(announcements.length, 1);
-    assert.match(announcements[0].content, count ? /choose one book/ : /no books remaining/);
-    if (!count) assert.deepEqual(buildPollComponents(poll()), []);
+    assert.match(announcements[0].content, /fewer than three nominations/);
+    assert.deepEqual(buildPollComponents(poll()), []);
+    assert.match(edits.at(-1).embeds[0].description, /fewer than three nominations/);
+    await start.execute(interaction());
+    assert.equal(poll().status, "nominating");
+    assert.deepEqual(poll().options, []);
   });
 }
+
+test("a failed nomination cleanup rolls back automatic closure of a short ranked round", async () => {
+  nominationRound({ overdue: true, pollType: "ranked" });
+  poll().options = poll().options.slice(0, 2);
+  store.state.nominations = store.state.nominations.slice(0, 2);
+  const before = structuredClone(store.state);
+  store.nextNominationDelete = () => { throw new Error("cleanup failed"); };
+  await assert.rejects(openDueBookPolls(client), /cleanup failed/);
+  assert.deepEqual(store.state, before);
+  assert.equal(announcements.length, 0);
+});
+
+test("an empty regular round closes without voting", async () => {
+  nominationRound({ overdue: true });
+  poll().options = [];
+  store.state.nominations = [];
+  await openDueBookPolls(client);
+  assert.equal(poll().status, "closed");
+  assert.match(announcements[0].content, /no books remaining/);
+});
 
 test("the creator can cancel a nomination round and it never opens voting", async () => {
   nominationRound({ overdue: true });
@@ -718,6 +777,63 @@ test("two overlapping closers produce one committed winner and one announcement"
   assert.equal(announcements.length, 1);
   assert.equal(store.state.books.length, 1);
   assert.equal(store.state.nominations.length, 0);
+});
+
+for (const result of ["winner", "tie"]) {
+  test(`a failed ${result} announcement remains queued after closure and is retried`, async () => {
+    poll().votes = result === "winner" ? { member: 0 } : { member: 0, another: 1 };
+    const channel = await client.channels.fetch();
+    const send = channel.send;
+    channel.send = async () => { throw new Error("temporary send failure"); };
+    await close();
+    assert.equal(poll().status, "closed");
+    assert.equal(poll().resultAnnouncementPending, true);
+    assert.equal(store.state.books.length, result === "winner" ? 1 : 0);
+    channel.send = send;
+    // A fresh module has no in-memory delivery state; progress lives in MongoDB.
+    const restarted = await import(`../dist/poll-closing.js?retry-${result}`);
+    await restarted.retryBookPollResults(client);
+    assert.equal(poll().resultAnnouncementPending, false);
+    assert.equal(announcements.length, 1);
+    await checkBookPollSchedule(client);
+    assert.equal(announcements.length, 1);
+    assert.equal(store.state.books.length, result === "winner" ? 1 : 0);
+  });
+}
+
+test("retrying a partially delivered result resumes at the unsent page without another everyone mention", async () => {
+  poll().votes = Object.fromEntries(Array.from({ length: 9 }, (_, index) => [`member-${index}`, 0]));
+  const channel = await client.channels.fetch();
+  const send = channel.send;
+  let attempts = 0;
+  channel.send = async (message) => {
+    attempts += 1;
+    if (attempts === 2) throw new Error("continuation failed");
+    await send(message);
+  };
+  await close();
+  assert.equal(poll().resultAnnouncementPending, true);
+  assert.equal(poll().resultAnnouncementPage, 1);
+  assert.equal(announcements.length, 1);
+  channel.send = send;
+  await checkBookPollSchedule(client);
+  assert.equal(poll().resultAnnouncementPending, false);
+  assert.equal(announcements.length, 3);
+  assert.equal(announcements.filter(message => message.content?.includes("@everyone")).length, 1);
+  assert.equal(new Set(announcements.map(message => message.nonce)).size, 3);
+  assert.ok(announcements.every(message => message.enforceNonce));
+});
+
+test("an unavailable result channel leaves the result queued until it can be fetched", async () => {
+  poll().votes = { member: 0 };
+  const fetch = client.channels.fetch;
+  client.channels.fetch = async () => null;
+  await close();
+  assert.equal(poll().resultAnnouncementPending, true);
+  client.channels.fetch = fetch;
+  await checkBookPollSchedule(client);
+  assert.equal(poll().resultAnnouncementPending, false);
+  assert.equal(announcements.length, 1);
 });
 
 test("a failure clearing nominations rolls back closure and book creation before Discord side effects", async () => {

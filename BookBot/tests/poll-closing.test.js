@@ -33,7 +33,9 @@ const collections = {
       };
     },
     async updateOne(query, update, options) {
-      if (update.$set.messageRefreshPending === false) {
+      if (!update.$set.status && ("resultAnnouncementPage" in update.$set || update.$set.resultAnnouncementPending === false)) {
+        assert.equal(options, undefined);
+      } else if (update.$set.messageRefreshPending === false) {
         assert.equal(options, undefined);
         assert.equal(query.status, "closed");
         assert.deepEqual(query.options, poll.options);

@@ -55,8 +55,18 @@ test("a running nomination window shows the saved deadline and how to edit nomin
   assert.equal(embed.fields[0].value, `<t:${timestamp}:f> (<t:${timestamp}:R>)`);
   assert.match(embed.description, /\/remove-nomination/);
   assert.match(embed.description, /changes do not reset the timer/);
-  assert.match(embed.fields[1].value, /Fewer than 3 nominations: pick one book/);
+  assert.match(embed.fields[1].value, /Requires 3 nominations; otherwise the round closes without voting/);
   assert.equal(embed.fields[2].value, "3");
+  assert.equal(controls.length, 0);
+});
+
+test("a short ranked round explains that voting will not open after its deadline", () => {
+  const poll = nominations("ranked");
+  poll.nominationsCloseAt = new Date(Date.now() - 1);
+  poll.options = pollFixture().options.slice(0, 2);
+  const { embed, controls } = view(poll);
+  assert.match(embed.description, /ranked round will close without a vote/);
+  assert.doesNotMatch(embed.description, /Voting will open/);
   assert.equal(controls.length, 0);
 });
 

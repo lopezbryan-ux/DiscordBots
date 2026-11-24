@@ -1,5 +1,6 @@
 import { getLibraryGuildId } from "./library-scope.js";
-import { AttachmentBuilder, Client, EmbedBuilder } from "discord.js";
+import { AttachmentBuilder, Client, EmbedBuilder, type MessageCreateOptions } from "discord.js";
+import { createHash } from "node:crypto";
 import { formatBookTitle, getBookClubCollections, PollDocument } from "./book-club.js";
 import { getValidPollVotes, getWinningOptions, refreshPollMessage } from "./polls.js";
 import { mongoClient } from "./mongo.js";
@@ -22,6 +23,23 @@ export interface CloseActiveBookPollsResult {
 }
 
 const MAX_VOTERS_PER_ANNOUNCEMENT = 4;
+const resultAnnouncements = new Map<string, Promise<void>>();
+
+async function sendResultPage(
+  send: (message: MessageCreateOptions) => Promise<unknown>,
+  poll: PollDocument,
+  page: number,
+  message: MessageCreateOptions,
+) {
+  if (page < (poll.resultAnnouncementPage ?? 0)) return;
+  // Discord deduplicates a recent retry if sending succeeded but saving progress failed.
+  const nonce = createHash("sha256").update(`${poll.pollId}:result:${page}`).digest("hex").slice(0, 24);
+  await send({ ...message, nonce, enforceNonce: true });
+  const { polls } = getBookClubCollections();
+  await polls.updateOne({ pollId: poll.pollId, guildId: poll.guildId, resultAnnouncementPending: true }, {
+    $set: { resultAnnouncementPage: page + 1 },
+  });
+}
 
 function buildVoteRevealLines(poll: PollDocument) {
   const lines: string[] = [];
@@ -152,10 +170,10 @@ function buildTiedBookVoteText(poll: PollDocument, tiedOptionIndexes: number[], 
 }
 
 async function announcePollWinner(client: Client, poll: PollDocument, winner: PollDocument["winner"], scoreText: string) {
-  if (!winner) return;
+  if (!winner) return false;
 
   const channel = await client.channels.fetch(poll.channelId).catch(() => null);
-  if (!channel?.isTextBased() || !("send" in channel)) return;
+  if (!channel?.isTextBased() || !("send" in channel)) return false;
 
   const voteRevealLines = buildVoteRevealLines(poll);
   const voteRevealPages = voteRevealLines.length > 0
@@ -206,7 +224,7 @@ async function announcePollWinner(client: Client, poll: PollDocument, winner: Po
     const voteFiles = addAnnouncementSection(announcementEmbed, "Votes", value, "book-poll-ballot.txt");
     const files = index === 0 ? [...runnerUpFiles, ...voteFiles] : voteFiles;
 
-    await channel.send({
+    await sendResultPage((message) => channel.send(message), poll, index, {
       content: index === 0
         ? `@everyone The book poll is over. **${formatBookTitle(winner.title, winner.author)}** won and has been added to the club list.`
         : undefined,
@@ -217,6 +235,7 @@ async function announcePollWinner(client: Client, poll: PollDocument, winner: Po
         : { parse: [] },
     });
   }
+  return true;
 }
 
 async function announcePollTie(
@@ -226,7 +245,7 @@ async function announcePollTie(
   scoreText: string,
 ) {
   const channel = await client.channels.fetch(poll.channelId).catch(() => null);
-  if (!channel?.isTextBased() || !("send" in channel)) return;
+  if (!channel?.isTextBased() || !("send" in channel)) return false;
 
   const tiedBookVoteText = buildTiedBookVoteText(poll, tiedOptionIndexes, scoreText);
   for (const [index, description] of splitAnnouncement(tiedBookVoteText, 4096).entries()) {
@@ -237,12 +256,45 @@ async function announcePollTie(
       .addFields({ name: "Poll type", value: formatPollType(poll), inline: true })
       .setTimestamp();
 
-    await channel.send({
+    await sendResultPage((message) => channel.send(message), poll, index, {
       content: index === 0 ? "@everyone The book poll is over. It ended in a tie, so no book was added." : undefined,
       embeds: [embed],
       allowedMentions: { parse: index === 0 ? ["everyone"] : [] },
     });
   }
+  return true;
+}
+
+function announceClosedPoll(client: Client, candidate: PollDocument) {
+  const key = `${candidate.guildId}:${candidate.pollId}`;
+  const existing = resultAnnouncements.get(key);
+  if (existing) return existing;
+  const work = (async () => {
+    const { polls } = getBookClubCollections();
+    const poll = await polls.findOne({ pollId: candidate.pollId, guildId: candidate.guildId, resultAnnouncementPending: true });
+    if (!poll) return;
+    const { highestVoteCount, winners } = getWinningOptions(poll);
+    const label = poll.pollType === "ranked" ? "point" : "vote";
+    const scoreText = `${highestVoteCount} ${label}${highestVoteCount === 1 ? "" : "s"}`;
+    const sent = poll.winner
+      ? await announcePollWinner(client, poll, poll.winner, scoreText)
+      : await announcePollTie(client, poll, poll.options.flatMap((option, index) =>
+        winners.some((winner) => winner.nominationId === option.nominationId) ? [index] : [],
+      ), scoreText);
+    if (sent) await polls.updateOne({ pollId: poll.pollId, guildId: poll.guildId }, {
+      $set: { resultAnnouncementPending: false },
+    });
+  })().catch(() => {
+    console.error("Failed to publish book poll results; saved progress will be retried.");
+  }).finally(() => { resultAnnouncements.delete(key); });
+  resultAnnouncements.set(key, work);
+  return work;
+}
+
+export async function retryBookPollResults(client: Client) {
+  const { polls } = getBookClubCollections();
+  const pending = await polls.find({ status: "closed", resultAnnouncementPending: true }).toArray();
+  for (const poll of pending) await announceClosedPoll(client, poll);
 }
 
 export async function closeActiveBookPolls(options: CloseActiveBookPollsOptions): Promise<CloseActiveBookPollsResult> {
@@ -284,10 +336,11 @@ export async function closeActiveBookPolls(options: CloseActiveBookPollsOptions)
       const { highestVoteCount, winners } = getWinningOptions(poll);
       const winner = winners.length === 1 ? winners[0] : null;
       const closedAt = options.now ?? new Date();
-      const closedPoll: PollDocument = { ...poll, status: "closed", winner, closedAt, updatedAt: closedAt };
+      const resultAnnouncementPending = Boolean((winner && addWinners) || winners.length > 1);
+      const closedPoll: PollDocument = { ...poll, status: "closed", winner, closedAt, updatedAt: closedAt, resultAnnouncementPending, resultAnnouncementPage: 0 };
       const update = await polls.updateOne(
         { pollId: poll.pollId, guildId: poll.guildId, status: poll.status },
-        { $set: { status: "closed", winner, closedAt, updatedAt: closedAt, phaseAnnouncementPending: false, messageRefreshPending: true } },
+        { $set: { status: "closed", winner, closedAt, updatedAt: closedAt, phaseAnnouncementPending: false, messageRefreshPending: true, resultAnnouncementPending, resultAnnouncementPage: 0 } },
         { session },
       );
       if (update.matchedCount === 0) return null;
@@ -335,12 +388,6 @@ export async function closeActiveBookPolls(options: CloseActiveBookPollsOptions)
     closedCount += 1;
     clearedNominationCount += result.clearedCount;
     const scoreLabel = poll.pollType === "ranked" ? "point" : "vote";
-    const tiedOptionIndexes =
-      winners.length > 1
-        ? poll.options.flatMap((option, index) =>
-            winners.some((tiedWinner) => tiedWinner.nominationId === option.nominationId) ? [index] : [],
-          )
-        : [];
     if (winner && addWinners) invalidateRatingViewsCache(poll.guildId);
     // External effects only run after the transaction has committed successfully.
     await refreshPollMessage(options.client, poll);
@@ -350,7 +397,7 @@ export async function closeActiveBookPolls(options: CloseActiveBookPollsOptions)
     if (poll.nominationsCloseAt !== undefined && poll.closesAt === null) {
       summaries.push(`- Cancelled \`${poll.pollId}\` before voting opened. No book was added.`);
     } else if (winner && addWinners) {
-      await announcePollWinner(options.client, poll, winner, scoreText);
+      await announceClosedPoll(options.client, poll);
 
       summaries.push(
         `- Closed \`${poll.pollId}\`: added **${formatBookTitle(winner.title, winner.author)}** with ${scoreText}.`,
@@ -363,7 +410,7 @@ export async function closeActiveBookPolls(options: CloseActiveBookPollsOptions)
         )}** because this poll was closed manually.`,
       );
     } else if (winners.length > 1) {
-      await announcePollTie(options.client, poll, tiedOptionIndexes, scoreText);
+      await announceClosedPoll(options.client, poll);
 
       const tiedBooks = winners.map((tiedWinner) => `**${formatBookTitle(tiedWinner.title, tiedWinner.author)}**`).join(", ");
       summaries.push(`- Closed \`${poll.pollId}\`: no book added because there was a tie between ${tiedBooks}.`);
