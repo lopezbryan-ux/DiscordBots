@@ -54,11 +54,12 @@ Confirm the latest startup completed the build, printed `Successfully reloaded a
 
 ## Daily availability
 
-- **Shutdown: 2:00 AM every day, America/Chicago (Central Time).** Verified in root's crontab: `0 2 * * * /sbin/shutdown -h now`. This shuts down the Raspberry Pi host and takes Book Bot offline.
-- **Morning power-on: 7:00 AM every day, America/Chicago (Central Time).** The smart plug turns on at this time, as confirmed by the user. The host's cron jobs do not control morning power-on.
+- **Host shutdown: 2:00 AM every day, America/Chicago (Central Time).** Rechecked in root's crontab on 2026-11-24: `0 2 * * * /sbin/shutdown -h now`. The user confirmed keeping this time. This shuts down the Raspberry Pi host and takes both bots offline.
+- **Smart plug: turns off at 3:15 AM and on at 7:00 AM daily.** Both automations are enabled in the user's screenshot supplied on 2026-11-24. The screenshot does not display a timezone; the host uses America/Chicago. The plug schedule is separate from the host's shutdown job, and changing it does not change that job.
+- **Daylight saving time:** America/Chicago follows CST in winter and CDT in summer, so the host job remains at 2:00 AM local Central time. Root's crontab has no timezone override. The installed `cron(8)` documentation says fixed-time jobs skipped by the spring-forward clock change run soon after the change; the missing 2:00 AM shutdown therefore runs shortly after 3:00 AM that night. No manual one-hour adjustment is needed.
 - **Bot startup after power-on:** the enabled `pm2-lopezb123.service` runs `pm2 resurrect` at boot, restoring the saved processes. Book Bot becomes available after boot and its build, command registration, and Discord login complete.
 
-Expect Book Bot to be offline from 2:00 AM Central until startup completes after the plug turns on at 7:00 AM Central. A PM2 restart cannot turn on a powered-off host.
+The verified host shutdown still takes Book Bot offline at 2:00 AM Central, before the plug's 3:15 AM cutoff. It becomes available after the plug's 7:00 AM power-on and startup complete. A PM2 restart cannot turn on a powered-off host. Do not infer a changed host shutdown time from an updated smart-plug schedule; verify the host job separately.
 
 ## First start only
 
