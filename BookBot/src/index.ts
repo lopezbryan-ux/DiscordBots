@@ -14,7 +14,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { mongoClient } from './mongo.js';
 import { ensureRatingBookIdIndex } from './book-ratings.js';
-import { closeOverdueBookPolls } from './poll-closing.js';
+import { checkBookPollSchedule } from './poll-scheduling.js';
 import {
   handleBookPollPage,
   handleBookPollRank,
@@ -69,7 +69,7 @@ if (!TOKEN) {
 const client = new Client({
   intents: [GatewayIntentBits.Guilds],
 }) as ExtendedClient;
-const OVERDUE_POLL_CHECK_INTERVAL_MS = 60 * 1000;
+const POLL_SCHEDULE_CHECK_INTERVAL_MS = 60 * 1000;
 
 client.commands = new Collection();
 
@@ -130,27 +130,17 @@ function getCommand(commandModule: Record<string, unknown>): Command | undefined
   // When the client is ready, run this code (only once).
   client.once(Events.ClientReady, (readyClient) => {
     console.log(`Ready! Logged in as ${readyClient.user.tag}`);
-    closeOverdueBookPolls(readyClient)
-      .then((result) => {
-        if (result.closedCount > 0) {
-          console.log(`Closed ${result.closedCount} overdue book poll(s).`);
-        }
-      })
+    checkBookPollSchedule(readyClient)
       .catch((error) => {
-        console.error('Failed to close overdue book polls on startup:', error);
+        console.error('Failed to advance book polls on startup:', error);
       });
 
     setInterval(() => {
-      closeOverdueBookPolls(readyClient)
-        .then((result) => {
-          if (result.closedCount > 0) {
-            console.log(`Closed ${result.closedCount} overdue book poll(s).`);
-          }
-        })
+      checkBookPollSchedule(readyClient)
         .catch((error) => {
-          console.error('Failed to close overdue book polls:', error);
+          console.error('Failed to advance book polls:', error);
         });
-    }, OVERDUE_POLL_CHECK_INTERVAL_MS);
+    }, POLL_SCHEDULE_CHECK_INTERVAL_MS);
   });
 
   // Listen for interactions (slash commands)

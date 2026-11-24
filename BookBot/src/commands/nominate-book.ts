@@ -11,11 +11,11 @@ import {
 import { remapPollVotes } from "../poll-votes.js";
 import { refreshPollMessage } from "../polls.js";
 import { mongoClient } from "../mongo.js";
-import { isPollOpen, openPollFilter, PollClosedError } from "../poll-state.js";
+import { isNominationOpen, nominationPollFilter, nominationClosedMessage, PollClosedError, POLL_STAGE_DURATION_MS } from "../poll-state.js";
 
 export const data = new SlashCommandBuilder()
   .setName("nominate-book")
-  .setDescription("Nominate a book for the active club poll.")
+  .setDescription("Nominate a book during the poll's 24-hour nomination window.")
   .addStringOption((option) =>
     option.setName("title").setDescription("The title of the book you want to nominate.").setRequired(true),
   )
@@ -59,15 +59,23 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply();
   const { nominations, polls } = getBookClubCollections();
   const result = await mongoClient.withSession((session) => session.withTransaction(async () => {
-    const activePoll = await polls.findOne({ guildId: interaction.guildId, status: "active" }, { session });
-    if (!activePoll || !isPollOpen(activePoll)) {
-      return { error: "There is no open book poll right now. Start one with `/start-book-poll` before nominating books." };
+    const activePoll = await polls.findOne({ guildId: interaction.guildId, status: { $in: ["nominating", "active"] } }, { session });
+    if (!activePoll || !isNominationOpen(activePoll)) {
+      return { error: nominationClosedMessage(activePoll) };
     }
 
     const now = new Date();
+    // Save the first nomination and its deadline in the same transaction. A
+    // concurrent nomination retries against the saved deadline without resetting it.
+    const startsTimer = activePoll.status === "nominating" && activePoll.nominationsCloseAt == null;
+    const timerUpdate = startsTimer
+      ? { nominationsCloseAt: new Date(now.getTime() + POLL_STAGE_DURATION_MS) }
+      : {};
     const normalizedTitle = normalizeTitle(title);
     const canNominateMultiple = activePoll.createdBy === interaction.user.id;
+    const pollScope = activePoll.status === "nominating" ? { pollId: activePoll.pollId } : {};
     const nominationLookup = {
+      ...pollScope,
       documentType: "nomination" as const,
       guildId: interaction.guildId,
       nominatedBy: interaction.user.id,
@@ -83,6 +91,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const nominationId = !replacedBook && existingNomination ? existingNomination.nominationId : randomUUID();
     const nominationUpdate = await nominations.updateOne(nominationLookup, {
       $set: {
+        ...pollScope,
         nominationId, title, normalizedTitle, author, reason, imageUrl,
         guildId: interaction.guildId, channelId: interaction.channelId,
         nominatedBy: interaction.user.id, nominatedByUsername: interaction.user.username, updatedAt: now,
@@ -92,6 +101,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     if (!canNominateMultiple) {
       await nominations.deleteMany({
+        ...pollScope,
         documentType: "nomination", guildId: interaction.guildId, nominatedBy: interaction.user.id,
         status: "nominated", nominationId: { $ne: nominationId },
       }, { session });
@@ -115,15 +125,19 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     });
     if (optionIndex < 0) options.push(pollOption);
     const votes = remapPollVotes(activePoll.votes, indexMap);
-    const update = await polls.updateOne(openPollFilter(activePoll.pollId, interaction.guildId), {
-      $set: { options, votes, updatedAt: now },
+    const update = await polls.updateOne(nominationPollFilter(activePoll), {
+      $set: { ...timerUpdate, options, votes, updatedAt: now, messageRefreshPending: true },
     }, { session });
-    if (update.matchedCount === 0) throw new PollClosedError();
+    if (update.matchedCount === 0) throw new PollClosedError(activePoll.status === "nominating" ? nominationClosedMessage(activePoll) : undefined);
 
     return {
-      poll: { ...activePoll, options, votes, updatedAt: now },
+      poll: { ...activePoll, ...timerUpdate, options, votes, updatedAt: now },
       action: nominationUpdate.upsertedCount > 0 ? "Nominated" : canNominateMultiple ? "Updated your nomination for" : "Replaced your nomination with",
-      pollText: optionIndex < 0 ? "Added this book to the active poll." : replacedBook ? "Votes for the previous book were cleared. Members can vote again." : "Updated this book in the active poll.",
+      pollText: activePoll.status === "nominating"
+        ? startsTimer
+          ? "The 24-hour nomination timer has started! Voting opens automatically when nominations close."
+          : "Saved for the upcoming vote. Voting opens automatically after nominations close."
+        : optionIndex < 0 ? "Added this book to the active poll." : replacedBook ? "Votes for the previous book were cleared. Members can vote again." : "Updated this book in the active poll.",
     };
   }, { readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } })).catch((error: unknown) => {
     if (error instanceof PollClosedError) return { error: error.message };

@@ -25,8 +25,8 @@ const ACTIVE_POLL_COLOR = 0x5865f2;
 const CLOSED_POLL_COLOR = 0x747f8d;
 
 type PollComponentRow = ActionRowBuilder<ButtonBuilder> | ActionRowBuilder<StringSelectMenuBuilder>;
-type PollComponentPoll = Pick<PollDocument, "options" | "pollId" | "pollType" | "votes" | "status" | "closesAt">;
-const pollMessageUpdates = new Map<string, Promise<void>>();
+type PollComponentPoll = Pick<PollDocument, "options" | "pollId" | "pollType" | "votes" | "status" | "closesAt" | "nominationsCloseAt">;
+const pollMessageUpdates = new Map<string, Promise<boolean>>();
 
 export function buildPollCustomId(pollId: string, nominationId: string, page: number) {
   return `${POLL_VOTE_PREFIX}:${pollId}:${nominationId}:${page}`;
@@ -187,14 +187,22 @@ function buildRegularPollDescription(
     .join("\n\n");
 }
 
-function buildHiddenPollDescription(options: PollOption[], startIndex: number) {
+function buildCompactPollDescription(options: PollOption[], startIndex: number, scores?: number[], pollType: PollType = "regular") {
+  // Reserve space for instructions and keep every numbered option visible, even
+  // with long titles or cover URLs. Full metadata remains saved on the nomination.
+  const entryBudget = Math.floor((3400 - Math.max(0, options.length - 1) * 2) / Math.max(1, options.length));
   return options
     .map((option, index) => {
       const optionIndex = startIndex + index;
       const nomination = formatBookTitle(option.title, option.author);
-      const cover = option.imageUrl ? ` ([cover](${option.imageUrl}))` : "";
+      let cover = option.imageUrl ? ` ([cover](${option.imageUrl}))` : "";
+      const prefix = `**${optionIndex + 1}  ·  `;
+      const score = scores ? ` — ${formatScore(scores[optionIndex] ?? 0, pollType)}` : "";
+      if (cover.length > entryBudget - prefix.length - score.length - 82) cover = "";
+      const titleBudget = entryBudget - prefix.length - 2 - cover.length - score.length;
+      const title = nomination.length > titleBudget ? `${nomination.slice(0, titleBudget - 1)}…` : nomination;
 
-      return `**${optionIndex + 1}  ·  ${nomination}**${cover}`;
+      return `${prefix}${title}**${cover}${score}`;
     })
     .join("\n\n");
 }
@@ -294,26 +302,77 @@ function buildParticipationText(poll: Pick<PollDocument, "options" | "pollType" 
 }
 
 export function buildPollEmbed(
-  poll: Pick<PollDocument, "closedAt" | "closesAt" | "options" | "pollId" | "pollType" | "votes" | "status">,
+  poll: Pick<PollDocument, "closedAt" | "closesAt" | "nominationsCloseAt" | "options" | "pollId" | "pollType" | "votes" | "status">,
   page = 0,
 ) {
   const pollType = getPollType(poll);
   const totalPages = getPollTotalPages(poll);
   const { safePage, startIndex, options } = getPollPageOptions(poll, page);
-  const isActive = isPollOpen(poll);
-  const scores = isActive ? [] : getPollScores(poll);
-  const results =
-    poll.options.length === 0
-      ? "*No books have been nominated yet. Use `/nominate-book` to add the first one.*"
-      : isActive
-        ? buildHiddenPollDescription(options, startIndex)
-        : pollType === "regular"
-          ? buildRegularPollDescription(poll, options, startIndex, scores)
-          : buildRankedPollDescription(poll, options, startIndex, scores);
-  const description = `${buildPollInstructions(pollType, isActive)}\n\n${results}`;
   const votingStyle = pollType === "ranked" ? "Rank your top 3 · 3–2–1 points" : "Pick one book";
   const footerText =
     totalPages > 1 ? `Poll ID · ${poll.pollId}  •  Page ${safePage + 1} of ${totalPages}` : `Poll ID · ${poll.pollId}`;
+
+  if (poll.status === "nominating") {
+    const waiting = poll.nominationsCloseAt == null;
+    const expired = !waiting && poll.nominationsCloseAt!.getTime() <= Date.now();
+    const instructions = expired
+      ? poll.options.length > 0
+        ? "Nominations are closed. Voting will open automatically shortly and last **24 hours**."
+        : "Nominations are closed. No books remain, so this round will close without a vote."
+      : "Use `/nominate-book` to nominate or replace your book, or `/remove-nomination` to remove it. " +
+        (waiting
+          ? "The **first nomination** starts the **24-hour** nomination timer. "
+          : "Nominations stay open until the deadline below; changes do not reset the timer. ") +
+        "Voting opens automatically afterward and lasts **24 hours**.";
+    return new EmbedBuilder()
+      .setColor(ACTIVE_POLL_COLOR)
+      .setTitle(expired ? "📚  Nominations Closed" : "📚  Nominate Our Next Book")
+      .setDescription(
+        `${instructions}\n\n` +
+        (options.length ? buildCompactPollDescription(options, startIndex) : "*No books are currently nominated.*"),
+      )
+      .addFields(
+        {
+          name: expired ? "✅  Nominations closed" : "⏳  Nominations close",
+          value: poll.nominationsCloseAt == null ? "Waiting for the first nomination" : formatPollCloseTime(poll.nominationsCloseAt),
+          inline: true,
+        },
+        {
+          name: "🗳️  Voting",
+          value: `${votingStyle} · 24 hours` + (pollType === "ranked" ? "\nFewer than 3 nominations: pick one book." : ""),
+          inline: true,
+        },
+        { name: "📚  Nominations", value: String(poll.options.length), inline: true },
+      )
+      .setFooter({ text: footerText });
+  }
+
+  if (closedBeforeVoting(poll)) {
+    return new EmbedBuilder()
+      .setColor(CLOSED_POLL_COLOR)
+      .setTitle("📕  Book Nominations Closed")
+      .setDescription("This nomination round ended before voting opened. No book was added. Use `/start-book-poll` to start another round.")
+      .addFields({ name: "✅  Closed", value: formatPollCloseTime(poll.closedAt) })
+      .setFooter({ text: footerText });
+  }
+
+  const isActive = isPollOpen(poll);
+  const scores = isActive ? [] : getPollScores(poll);
+  let results =
+    poll.options.length === 0
+      ? poll.status === "closed"
+        ? "*No books were nominated.*"
+        : "*No books have been nominated yet. Use `/nominate-book` to add the first one.*"
+      : isActive
+        ? buildCompactPollDescription(options, startIndex)
+        : pollType === "regular"
+          ? buildRegularPollDescription(poll, options, startIndex, scores)
+          : buildRankedPollDescription(poll, options, startIndex, scores);
+  const instructions = (isActive && poll.nominationsCloseAt !== undefined ? "Nominations are locked. " : "") + buildPollInstructions(pollType, isActive);
+  if (instructions.length + 2 + results.length > 4096) {
+    results = buildCompactPollDescription(options, startIndex, isActive ? undefined : scores, pollType);
+  }
+  const description = `${instructions}\n\n${results}`;
 
   return new EmbedBuilder()
     .setColor(isActive ? ACTIVE_POLL_COLOR : CLOSED_POLL_COLOR)
@@ -336,7 +395,11 @@ export function buildPollEmbed(
 }
 
 export function buildPollComponents(poll: PollComponentPoll, disabled = false, page = 0, viewerUserId?: string) {
-  if (poll.options.length === 0) return [];
+  if (poll.options.length === 0 || closedBeforeVoting(poll)) return [];
+  if (poll.status === "nominating") {
+    const totalPages = getPollTotalPages(poll);
+    return totalPages > 1 ? [buildPollPageRow(poll.pollId, getSafePollPage(poll, page), totalPages)] : [];
+  }
   disabled = disabled || !isPollOpen(poll);
 
   return getPollType(poll) === "ranked"
@@ -467,28 +530,42 @@ function isEphemeralMessageInteraction(interaction: ButtonInteraction | StringSe
 }
 
 export async function refreshPollMessage(client: Client, poll: PollDocument, page = 0) {
-  if (!poll.messageId) return;
+  if (!poll.messageId) return false;
   const key = `${poll.guildId}:${poll.pollId}`;
-  const previous = pollMessageUpdates.get(key) ?? Promise.resolve();
+  const previous = pollMessageUpdates.get(key) ?? Promise.resolve(false);
   const update = previous.catch(() => {}).then(async () => {
     const channel = await client.channels.fetch(poll.channelId).catch(() => null);
-    if (!channel?.isTextBased() || !("messages" in channel)) return;
+    if (!channel?.isTextBased() || !("messages" in channel)) return false;
 
     const pollMessage = await channel.messages.fetch(poll.messageId!).catch(() => null);
-    if (!pollMessage) return;
+    if (!pollMessage) return false;
 
     const { polls } = getBookClubCollections();
     const latestPoll = await polls.findOne({ pollId: poll.pollId, guildId: poll.guildId });
-    if (!latestPoll) return;
+    if (!latestPoll) return false;
 
-    await pollMessage.edit({
-      embeds: [buildPollEmbed(latestPoll, page)],
-      components: buildPollComponents(latestPoll, false, page),
-    });
+    try {
+      await pollMessage.edit({
+        embeds: [buildPollEmbed(latestPoll, page)],
+        components: buildPollComponents(latestPoll, false, page),
+      });
+    } catch (error) {
+      console.error("Failed to update a book poll message:", error);
+      return false;
+    }
+    if (latestPoll.messageRefreshPending) {
+      // A newer edit must keep its retry flag even if this Discord write finishes later.
+      await polls.updateOne({
+        pollId: latestPoll.pollId, guildId: latestPoll.guildId,
+        status: latestPoll.status, updatedAt: latestPoll.updatedAt,
+        options: latestPoll.options, votes: latestPoll.votes,
+      }, { $set: { messageRefreshPending: false } });
+    }
+    return true;
   });
   pollMessageUpdates.set(key, update);
   try {
-    await update;
+    return await update;
   } finally {
     if (pollMessageUpdates.get(key) === update) pollMessageUpdates.delete(key);
   }
@@ -567,7 +644,7 @@ async function savePollVote(
   const { polls } = getBookClubCollections();
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const poll = await polls.findOne({ pollId, guildId });
-    if (!poll || !isPollOpen(poll)) return { ok: false, poll, error: "Voting has ended for this poll." };
+    if (!poll || !isPollOpen(poll)) return { ok: false, poll, error: votingUnavailableMessage(poll) };
 
     if (getPollType(poll) !== (rankKey ? "ranked" : "regular")) {
       return { ok: false, poll, error: rankKey ? "Use the vote buttons for this regular poll." : "Use the ranking menus for this ranked poll." };
@@ -635,7 +712,7 @@ export async function handleBookPollRankOpen(interaction: ButtonInteraction) {
   const poll = await polls.findOne({ pollId, guildId: interaction.guildId });
 
   if (!poll || !isPollOpen(poll)) {
-    await interaction.reply({ content: "Voting has ended for this poll.", flags: MessageFlags.Ephemeral });
+    await interaction.reply({ content: votingUnavailableMessage(poll), flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -703,16 +780,26 @@ export async function handleBookPollPage(interaction: ButtonInteraction) {
   const { polls } = getBookClubCollections();
   const poll = await polls.findOne({ pollId, guildId: interaction.guildId });
 
-  if (!poll || !isPollOpen(poll)) {
+  if (!poll || (poll.status !== "nominating" && !isPollOpen(poll))) {
     await interaction.reply({ content: "Voting has ended for this poll.", flags: MessageFlags.Ephemeral });
     return;
   }
 
-  if (getPollType(poll) === "ranked" && isEphemeralMessageInteraction(interaction)) {
+  if (poll.status === "active" && getPollType(poll) === "ranked" && isEphemeralMessageInteraction(interaction)) {
     await interaction.update(buildPrivateRankedBallot(poll, page, interaction.user.id));
     return;
   }
 
   await interaction.deferUpdate();
   await refreshPollMessage(interaction.client, poll, page);
+}
+
+function votingUnavailableMessage(poll?: PollDocument | null) {
+  return poll?.status === "nominating"
+    ? "Voting has not opened yet. It opens automatically after nominations close."
+    : "Voting has ended for this poll.";
+}
+
+function closedBeforeVoting(poll: Pick<PollDocument, "status" | "closesAt" | "nominationsCloseAt">) {
+  return poll.status === "closed" && poll.nominationsCloseAt !== undefined && poll.closesAt === null;
 }

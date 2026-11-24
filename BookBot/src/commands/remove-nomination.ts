@@ -3,11 +3,11 @@ import { formatBookTitle, getBookClubCollections } from "../book-club.js";
 import { remapPollVotes } from "../poll-votes.js";
 import { refreshPollMessage } from "../polls.js";
 import { mongoClient } from "../mongo.js";
-import { isPollOpen, openPollFilter, PollClosedError } from "../poll-state.js";
+import { isNominationOpen, nominationPollFilter, nominationClosedMessage, PollClosedError } from "../poll-state.js";
 
 export const data = new SlashCommandBuilder()
   .setName("remove-nomination")
-  .setDescription("Remove one of your nominations from the active book poll.")
+  .setDescription("Remove one of your nominations before the nomination window closes.")
   .addStringOption((option) =>
     option
       .setName("nomination")
@@ -23,9 +23,9 @@ function truncateChoiceName(value: string) {
 export async function autocomplete(interaction: AutocompleteInteraction) {
   const focusedValue = interaction.options.getFocused().trim().toLowerCase();
   const { polls } = getBookClubCollections();
-  const activePoll = await polls.findOne({ guildId: interaction.guildId, status: "active" });
+  const activePoll = await polls.findOne({ guildId: interaction.guildId, status: { $in: ["nominating", "active"] } });
 
-  if (!activePoll || !isPollOpen(activePoll)) {
+  if (!activePoll || !isNominationOpen(activePoll)) {
     await interaction.respond([]);
     return;
   }
@@ -48,8 +48,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   const { nominations, polls } = getBookClubCollections();
   const result = await mongoClient.withSession((session) => session.withTransaction(async () => {
-    const activePoll = await polls.findOne({ guildId: interaction.guildId, status: "active" }, { session });
-    if (!activePoll || !isPollOpen(activePoll)) return { error: "There is no open book poll right now." };
+    const activePoll = await polls.findOne({ guildId: interaction.guildId, status: { $in: ["nominating", "active"] } }, { session });
+    if (!activePoll || !isNominationOpen(activePoll)) return { error: nominationClosedMessage(activePoll) };
 
     const optionIndex = activePoll.options.findIndex(
       (option) => option.nominationId === nominationId && option.nominatedBy === interaction.user.id,
@@ -65,10 +65,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     });
     const votes = remapPollVotes(activePoll.votes, indexMap);
     const updatedAt = new Date();
-    const update = await polls.updateOne(openPollFilter(activePoll.pollId, interaction.guildId), {
-      $set: { options, votes, updatedAt },
+    const update = await polls.updateOne(nominationPollFilter(activePoll), {
+      $set: { options, votes, updatedAt, messageRefreshPending: true },
     }, { session });
-    if (update.matchedCount === 0) throw new PollClosedError();
+    if (update.matchedCount === 0) throw new PollClosedError(activePoll.status === "nominating" ? nominationClosedMessage(activePoll) : undefined);
 
     await nominations.deleteOne({
       nominationId, guildId: interaction.guildId, nominatedBy: interaction.user.id, status: "nominated",
@@ -85,6 +85,6 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   }
   await refreshPollMessage(interaction.client, result.poll);
   await interaction.editReply({
-    content: `Removed **${formatBookTitle(result.removedOption.title, result.removedOption.author)}** from the active poll. Votes for it were cleared; affected ranked ballots need a new pick to count.`,
+    content: `Removed **${formatBookTitle(result.removedOption.title, result.removedOption.author)}** from the ${result.poll.status === "nominating" ? "upcoming vote." : "active poll. Votes for it were cleared; affected ranked ballots need a new pick to count."}`,
   });
 }

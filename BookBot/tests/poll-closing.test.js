@@ -21,10 +21,11 @@ const session = { async withTransaction(callback) { return callback(); } };
 const collections = {
   [BOOK_POLLS_COLLECTION_NAME]: {
     async findOne(query) {
-      return query.status && poll.status !== query.status ? null : structuredClone(poll);
+      const statuses = query.status?.$in ?? [query.status ?? poll.status];
+      return statuses.includes(poll.status) ? structuredClone(poll) : null;
     },
     find(query) {
-      assert.equal(query.status, "active");
+      assert.deepEqual(query.status, { $in: ["nominating", "active"] });
       assert.equal(query.guildId, poll.guildId);
       return {
         sort() { return this; },
@@ -32,8 +33,15 @@ const collections = {
       };
     },
     async updateOne(query, update, options) {
-      assert.equal(options.session, session);
-      assert.equal(query.status, "active");
+      if (update.$set.messageRefreshPending === false) {
+        assert.equal(options, undefined);
+        assert.equal(query.status, "closed");
+        assert.deepEqual(query.options, poll.options);
+        assert.deepEqual(query.votes, poll.votes);
+      } else {
+        assert.equal(options.session, session);
+        assert.equal(query.status, "active");
+      }
       assert.equal(query.pollId, poll.pollId);
       assert.equal(query.guildId, poll.guildId);
       Object.assign(poll, update.$set);

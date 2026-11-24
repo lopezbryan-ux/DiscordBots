@@ -10,6 +10,7 @@ import {
 
 export interface NominationDocument {
   nominationId: string;
+  pollId?: string;
   documentType: "nomination";
   guildId: string | null;
   channelId: string;
@@ -51,7 +52,11 @@ export interface PollDocument {
   guildId: string | null;
   channelId: string;
   messageId: string | null;
-  status: "active" | "closed";
+  status: "nominating" | "active" | "closed";
+  // Null waits for the first nomination; absent identifies a legacy poll.
+  nominationsCloseAt?: Date | null;
+  phaseAnnouncementPending?: boolean;
+  messageRefreshPending?: boolean;
   pollType?: PollType;
   options: PollOption[];
   votes: PollVotes;

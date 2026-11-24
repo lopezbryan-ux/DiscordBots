@@ -35,6 +35,10 @@ function matches(document, query, now) {
     if (key === "$expr") return evaluate(condition, document, now);
     const value = get(document, key);
     if (condition && typeof condition === "object" && !Array.isArray(condition) && !(condition instanceof Date)) {
+      if ("$type" in condition) {
+        assert.equal(condition.$type, "date");
+        if (!(value instanceof Date)) return false;
+      }
       if ("$exists" in condition) return (value !== undefined) === condition.$exists;
       if ("$ne" in condition) return !isDeepStrictEqual(value, condition.$ne);
       if ("$in" in condition) return condition.$in.some((item) => isDeepStrictEqual(value, item));
@@ -131,6 +135,12 @@ export class PollStore {
     };
 
     return {
+      insertOne: async (document) => {
+        assert.equal(kind, "poll");
+        assert.equal(this.state.poll.status, "closed");
+        this.mutate((state) => { state.poll = clone(document); });
+        return { insertedId: document.pollId };
+      },
       find: (query, options) => {
         const result = clone(documents(options).filter((document) => matches(document, query, this.serverNow)));
         return { sort() { return this; }, async toArray() { return result; } };

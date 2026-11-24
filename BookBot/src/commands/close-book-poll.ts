@@ -4,11 +4,11 @@ import { closeActiveBookPolls } from "../poll-closing.js";
 
 export const data = new SlashCommandBuilder()
   .setName("close-book-poll")
-  .setDescription("Close the active book poll you created.");
+  .setDescription("Cancel nominations or close voting for the book poll you created.");
 
 export async function execute(interaction: ChatInputCommandInteraction) {
   const { polls } = getBookClubCollections();
-  const activePoll = await polls.findOne({ guildId: interaction.guildId, status: "active" });
+  const activePoll = await polls.findOne({ guildId: interaction.guildId, status: { $in: ["nominating", "active"] } });
 
   if (!activePoll) {
     await interaction.reply({ content: "There are no active polls to close.", flags: MessageFlags.Ephemeral });

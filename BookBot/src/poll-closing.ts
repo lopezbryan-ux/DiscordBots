@@ -250,7 +250,7 @@ export async function closeActiveBookPolls(options: CloseActiveBookPollsOptions)
   const now = options.now ?? new Date();
   const addWinners = options.addWinners ?? false;
   const query: Record<string, unknown> = {
-    status: "active",
+    status: options.overdueOnly ? "active" : { $in: ["nominating", "active"] },
   };
 
   if (options.guildId !== undefined) {
@@ -286,8 +286,8 @@ export async function closeActiveBookPolls(options: CloseActiveBookPollsOptions)
       const closedAt = options.now ?? new Date();
       const closedPoll: PollDocument = { ...poll, status: "closed", winner, closedAt, updatedAt: closedAt };
       const update = await polls.updateOne(
-        { pollId: poll.pollId, guildId: poll.guildId, status: "active" },
-        { $set: { status: "closed", winner, closedAt, updatedAt: closedAt } },
+        { pollId: poll.pollId, guildId: poll.guildId, status: poll.status },
+        { $set: { status: "closed", winner, closedAt, updatedAt: closedAt, phaseAnnouncementPending: false, messageRefreshPending: true } },
         { session },
       );
       if (update.matchedCount === 0) return null;
@@ -347,7 +347,9 @@ export async function closeActiveBookPolls(options: CloseActiveBookPollsOptions)
 
     const scoreText = `${highestVoteCount} ${scoreLabel}${highestVoteCount === 1 ? "" : "s"}`;
 
-    if (winner && addWinners) {
+    if (poll.nominationsCloseAt !== undefined && poll.closesAt === null) {
+      summaries.push(`- Cancelled \`${poll.pollId}\` before voting opened. No book was added.`);
+    } else if (winner && addWinners) {
       await announcePollWinner(options.client, poll, winner, scoreText);
 
       summaries.push(
