@@ -340,7 +340,7 @@ test("members can nominate, replace, and remove only their book during nominatio
 for (const pollType of ["regular", "ranked"]) {
   test(`${pollType}: nominations have no ballot controls and reject early votes`, async () => {
     nominationRound({ pollType });
-    assert.deepEqual(buildPollComponents(poll()), []);
+    assert.deepEqual(buildPollComponents(poll()).flatMap(row => row.toJSON().components).map(control => control.label), ["Book details"]);
     assert.match(buildPollEmbed(poll()).toJSON().title, /Nominate/);
     const response = await vote(optionId(0), pollType === "ranked" ? 0 : undefined);
     assert.match(response.content, /Voting has not opened/);
@@ -355,10 +355,41 @@ test("a large nomination list can be paged without exposing voting controls", as
   nominationRound();
   poll().options = Array.from({ length: 25 }, (_, index) => ({ ...poll().options[0], title: `Book ${index}` }));
   const components = buildPollComponents(poll()).flatMap((row) => row.toJSON().components);
-  assert.equal(components.length, 3);
-  assert.ok(components.every((component) => component.custom_id.startsWith("book-poll:page:")));
+  assert.equal(components.length, 4);
+  assert.ok(components.every((component) => component.custom_id.startsWith("book-poll:page:") || component.custom_id.startsWith("book-poll:details:")));
   await handleBookPollPage(interaction({ customId: buildPollPageCustomId(poll().pollId, 1) }));
   assert.match(edits.at(-1).embeds[0].description, /Book 24/);
+});
+
+test("startup refresh exposes existing saved reasons and covers without changing a round or its deadline", async () => {
+  nominationRound();
+  poll().options[0].reason = "An existing reason worth sharing";
+  poll().options[0].imageUrl = "https://example.com/saved-cover.jpg";
+  const before = structuredClone(poll());
+  const fetch = client.channels.fetch;
+  client.channels.fetch = async () => null;
+  await checkBookPollSchedule(client, { refreshOpenMessages: true });
+  assert.equal(poll().messageRefreshPending, true, "Failed startup edits must survive for a retry");
+  client.channels.fetch = fetch;
+  await checkBookPollSchedule(client);
+  assert.match(edits.at(-1).embeds[0].description, /An existing reason worth sharing/);
+  assert.match(edits.at(-1).embeds[0].description, /saved-cover.jpg/);
+  assert.ok(controls(edits.at(-1)).some(control => control.label === "Book details"));
+  assert.deepEqual(poll(), { ...before, messageRefreshPending: false });
+});
+
+test("editing a nomination updates its reason and cover in the poll while preserving the timer", async () => {
+  nominationRound();
+  const deadline = new Date(poll().nominationsCloseAt);
+  const request = interaction({ userId: "nominator-0", strings: {
+    title: "Book A", author: "Author 1", reason: "A new reason to read it", "image-url": "https://example.com/new-cover.jpg",
+  } });
+  await nominate.execute(request);
+  assert.match(edits.at(-1).embeds[0].description, /A new reason to read it/);
+  assert.match(edits.at(-1).embeds[0].description, /new-cover.jpg/);
+  assert.equal(poll().options[0].reason, "A new reason to read it");
+  assert.equal(poll().options[0].imageUrl, "https://example.com/new-cover.jpg");
+  assert.deepEqual(poll().nominationsCloseAt, deadline);
 });
 
 for (const action of ["nominate", "remove"]) {
@@ -563,7 +594,7 @@ test("regular buttons and ranked menu values identify nominations by stable IDs"
   });
   poll().pollType = "ranked";
   const ranked = buildPollComponents(poll(), false, 0, "voter").map((row) => row.toJSON());
-  for (const row of ranked) assert.deepEqual(row.components[0].options.map((option) => option.value), poll().options.map((option) => option.nominationId));
+  for (const row of ranked.filter(row => row.components[0].type === 3)) assert.deepEqual(row.components[0].options.map((option) => option.value), poll().options.map((option) => option.nominationId));
 });
 
 test("later pages keep stable IDs and Discord's component length limits", async () => {
@@ -639,7 +670,7 @@ for (const pollType of ["regular", "ranked"]) {
     const response = await vote(optionId(0), rank);
     assert.match(response.content, /Voting has ended/);
     assert.deepEqual(poll().votes, {});
-    assert.ok(controls(edits.at(-1)).every((component) => component.disabled));
+    assert.ok(controls(edits.at(-1)).filter((component) => component.label !== "Book details").every((component) => component.disabled));
   });
 }
 
@@ -766,7 +797,7 @@ test("closing retries after a concurrent vote and uses the same final snapshot f
   const announcement = announcements[0].embeds[0];
   assert.equal(announcement.fields.find((field) => field.name === "Final score").value, "2 votes");
   assert.match(announcement.fields.find((field) => field.name === "Votes").value, /firstVoter.*Book B/);
-  assert.ok(controls(edits.at(-1)).every((component) => component.disabled));
+  assert.ok(controls(edits.at(-1)).filter((component) => component.label !== "Book details").every((component) => component.disabled));
 });
 
 test("two overlapping closers produce one committed winner and one announcement", async () => {
@@ -867,7 +898,7 @@ test("queued public updates cannot leave a closed poll with voting controls re-e
   release();
   await Promise.all([staleRefresh, closing]);
   assert.equal(edits.at(-1).embeds[0].title, "📕  Book Poll Closed");
-  assert.ok(controls(edits.at(-1)).every((component) => component.disabled));
+  assert.ok(controls(edits.at(-1)).filter((component) => component.label !== "Book details").every((component) => component.disabled));
 });
 
 test("a poll ID from another server cannot accept a vote", async () => {

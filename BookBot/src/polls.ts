@@ -5,12 +5,14 @@ import {
   ButtonStyle,
   Client,
   EmbedBuilder,
+  escapeMarkdown,
   MessageFlags,
   StringSelectMenuBuilder,
   StringSelectMenuInteraction,
 } from "discord.js";
 import { getBookClubCollections, PollDocument, PollOption, PollType, RankedPollVote, formatBookTitle } from "./book-club.js";
 import { isPollOpen, openPollFilter } from "./poll-state.js";
+import { buildPollDetailsButton, truncatePollText } from "./poll-details.js";
 
 const POLL_VOTE_PREFIX = "book-poll:vote";
 const POLL_RANK_PREFIX = "book-poll:rank";
@@ -198,11 +200,15 @@ function buildCompactPollDescription(options: PollOption[], startIndex: number, 
       let cover = option.imageUrl ? ` ([cover](${option.imageUrl}))` : "";
       const prefix = `**${optionIndex + 1}  ·  `;
       const score = scores ? ` — ${formatScore(scores[optionIndex] ?? 0, pollType)}` : "";
-      if (cover.length > entryBudget - prefix.length - score.length - 82) cover = "";
-      const titleBudget = entryBudget - prefix.length - 2 - cover.length - score.length;
-      const title = nomination.length > titleBudget ? `${nomination.slice(0, titleBudget - 1)}…` : nomination;
+      const reasonText = option.reason?.trim().replace(/\s+/g, " ");
+      const reason = reasonText
+        ? `\n> ${truncatePollText(escapeMarkdown(reasonText), Math.min(160, Math.floor(entryBudget * 0.45)))}`
+        : "";
+      if (cover.length > entryBudget - reason.length - prefix.length - score.length - 82) cover = "";
+      const titleBudget = entryBudget - reason.length - prefix.length - 2 - cover.length - score.length;
+      const title = truncatePollText(nomination, titleBudget);
 
-      return `${prefix}${title}**${cover}${score}`;
+      return `${prefix}${title}**${cover}${score}${reason}`;
     })
     .join("\n\n");
 }
@@ -311,6 +317,7 @@ export function buildPollEmbed(
   const votingStyle = pollType === "ranked" ? "Rank your top 3 · 3–2–1 points" : "Pick one book";
   const footerText =
     totalPages > 1 ? `Poll ID · ${poll.pollId}  •  Page ${safePage + 1} of ${totalPages}` : `Poll ID · ${poll.pollId}`;
+  const detailsHint = poll.options.length ? " Use **Book details** for full nomination reasons and covers." : "";
 
   if (poll.status === "nominating") {
     const waiting = poll.nominationsCloseAt == null;
@@ -332,7 +339,7 @@ export function buildPollEmbed(
       .setColor(ACTIVE_POLL_COLOR)
       .setTitle(expired ? "📚  Nominations Closed" : "📚  Nominate Our Next Book")
       .setDescription(
-        `${instructions}\n\n` +
+        `${instructions}${detailsHint}\n\n` +
         (options.length ? buildCompactPollDescription(options, startIndex) : "*No books are currently nominated.*"),
       )
       .addFields(
@@ -377,7 +384,7 @@ export function buildPollEmbed(
         : pollType === "regular"
           ? buildRegularPollDescription(poll, options, startIndex, scores)
           : buildRankedPollDescription(poll, options, startIndex, scores);
-  const instructions = (isActive && poll.nominationsCloseAt !== undefined ? "Nominations are locked. " : "") + buildPollInstructions(pollType, isActive);
+  const instructions = (isActive && poll.nominationsCloseAt !== undefined ? "Nominations are locked. " : "") + buildPollInstructions(pollType, isActive) + detailsHint;
   if (instructions.length + 2 + results.length > 4096) {
     results = buildCompactPollDescription(options, startIndex, isActive ? undefined : scores, pollType);
   }
@@ -405,17 +412,29 @@ export function buildPollEmbed(
 
 export function buildPollComponents(poll: PollComponentPoll, disabled = false, page = 0, viewerUserId?: string) {
   if (poll.options.length === 0 || closedBeforeVoting(poll)) return [];
+  let rows: PollComponentRow[];
   if (poll.status === "nominating") {
     const totalPages = getPollTotalPages(poll);
-    return totalPages > 1 ? [buildPollPageRow(poll.pollId, getSafePollPage(poll, page), totalPages)] : [];
+    rows = totalPages > 1 ? [buildPollPageRow(poll.pollId, getSafePollPage(poll, page), totalPages)] : [];
+  } else {
+    disabled = disabled || !isPollOpen(poll);
+    rows = getPollType(poll) === "ranked"
+      ? viewerUserId
+        ? buildRankedPollBallotComponents(poll, disabled, page, viewerUserId)
+        : buildRankedPollOpenComponents(poll, disabled, page)
+      : buildRegularPollComponents(poll, disabled, page);
   }
-  disabled = disabled || !isPollOpen(poll);
-
-  return getPollType(poll) === "ranked"
-    ? viewerUserId
-      ? buildRankedPollBallotComponents(poll, disabled, page, viewerUserId)
-      : buildRankedPollOpenComponents(poll, disabled, page)
-    : buildRegularPollComponents(poll, disabled, page);
+  const firstBook = getPollPageOptions(poll, page).options[0];
+  const details = buildPollDetailsButton(poll.pollId, firstBook.nominationId);
+  const lastRow = rows[rows.length - 1];
+  // Share the pagination row to stay within five rows for a 20-book ballot.
+  const firstControl = lastRow?.components[0];
+  if (firstControl instanceof ButtonBuilder && "custom_id" in firstControl.data && firstControl.data.custom_id?.startsWith(`${POLL_PAGE_PREFIX}:`)) {
+    (lastRow as ActionRowBuilder<ButtonBuilder>).addComponents(details);
+  } else {
+    rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(details));
+  }
+  return rows;
 }
 
 function buildRegularPollComponents(poll: Pick<PollDocument, "options" | "pollId">, disabled = false, page = 0) {

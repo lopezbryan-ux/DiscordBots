@@ -16,6 +16,7 @@ import { mongoClient } from './mongo.js';
 import { ensureRatingBookIdIndex } from './book-ratings.js';
 import { ensureOpenBookPollIndex } from './book-club.js';
 import { checkBookPollSchedule } from './poll-scheduling.js';
+import { handleBookPollDetails, isBookPollDetailsCustomId } from './poll-details.js';
 import {
   handleBookPollPage,
   handleBookPollRank,
@@ -132,7 +133,7 @@ function getCommand(commandModule: Record<string, unknown>): Command | undefined
   // When the client is ready, run this code (only once).
   client.once(Events.ClientReady, (readyClient) => {
     console.log(`Ready! Logged in as ${readyClient.user.tag}`);
-    checkBookPollSchedule(readyClient)
+    checkBookPollSchedule(readyClient, { refreshOpenMessages: true })
       .catch((error) => {
         console.error('Failed to advance book polls on startup:', error);
       });
@@ -170,6 +171,11 @@ function getCommand(commandModule: Record<string, unknown>): Command | undefined
 
       if (interaction.isButton() && isBookPollVoteCustomId(interaction.customId)) {
         await handleBookPollVote(interaction);
+        return;
+      }
+
+      if (interaction.isButton() && isBookPollDetailsCustomId(interaction.customId)) {
+        await handleBookPollDetails(interaction);
         return;
       }
 

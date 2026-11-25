@@ -80,13 +80,23 @@ export async function openDueBookPolls(client: Client, now = new Date()) {
 
 // The startup pass and interval may overlap when Discord or MongoDB is slow.
 let scheduledCheck: Promise<void> | undefined;
-export function checkBookPollSchedule(client: Client) {
+export function checkBookPollSchedule(client: Client, options: { refreshOpenMessages?: boolean } = {}) {
   if (scheduledCheck) return scheduledCheck;
   scheduledCheck = (async () => {
     await closeOverdueBookPolls(client);
     await openDueBookPolls(client);
     await retryBookPollResults(client);
     const { polls } = getBookClubCollections();
+    if (options.refreshOpenMessages) {
+      // Refresh existing rounds after a deployment so saved reasons and covers
+      // are available without requiring anyone to nominate the book again.
+      const openPolls = await polls.find({ status: { $in: ["nominating", "active"] } }).toArray();
+      for (const poll of openPolls) {
+        await polls.updateOne({ pollId: poll.pollId, guildId: poll.guildId, status: poll.status }, {
+          $set: { messageRefreshPending: true },
+        });
+      }
+    }
     const pendingMessages = await polls.find({ messageRefreshPending: true }).toArray();
     for (const poll of pendingMessages) {
       try {

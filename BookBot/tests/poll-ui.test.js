@@ -57,7 +57,7 @@ test("a running nomination window shows the saved deadline and how to edit nomin
   assert.match(embed.description, /changes do not reset the timer/);
   assert.match(embed.fields[1].value, /Requires 3 nominations; otherwise the round closes without voting/);
   assert.equal(embed.fields[2].value, "3");
-  assert.equal(controls.length, 0);
+  assert.deepEqual(controls.map(control => control.label), ["Book details"]);
 });
 
 test("a short ranked round explains that voting will not open after its deadline", () => {
@@ -67,7 +67,7 @@ test("a short ranked round explains that voting will not open after its deadline
   const { embed, controls } = view(poll);
   assert.match(embed.description, /ranked round will close without a vote/);
   assert.doesNotMatch(embed.description, /Voting will open/);
-  assert.equal(controls.length, 0);
+  assert.deepEqual(controls.map(control => control.label), ["Book details"]);
 });
 
 test("removing all nominations keeps the countdown and describes the empty list accurately", () => {
@@ -87,7 +87,7 @@ test("an elapsed nomination window stops inviting submissions while the schedule
   assert.equal(embed.title, "📚  Nominations Closed");
   assert.match(embed.description, /Voting will open automatically shortly/);
   assert.doesNotMatch(embed.description, /Use `\/nominate-book`/);
-  assert.equal(controls.length, 0);
+  assert.deepEqual(controls.map(control => control.label), ["Book details"]);
 });
 
 for (const withBooks of [false, true]) {
@@ -115,13 +115,14 @@ for (const pollType of ["regular", "ranked"]) {
     assert.match(active.embed.description, /Nominations are locked/);
     assert.doesNotMatch(active.embed.description, /<@member>|⭐|█/);
     assert.ok(active.controls.some(control => !control.disabled));
-    if (pollType === "ranked") assert.equal(view(poll, 0, "member").controls.length, 3);
+    if (pollType === "ranked") assert.equal(view(poll, 0, "member").controls.filter(control => control.type === 3).length, 3);
 
     poll.closesAt = new Date(Date.now() - 1);
     const expired = view(poll);
     assert.equal(expired.embed.title, "📕  Book Poll Closed");
     assert.match(expired.embed.description, /final results/);
-    assert.ok(expired.controls.every(control => control.disabled));
+    assert.ok(expired.controls.filter(control => control.label !== "Book details").every(control => control.disabled));
+    assert.equal(expired.controls.find(control => control.label === "Book details").disabled, undefined);
   });
 
   test(`${pollType} long nomination lists stay within Discord limits across all stages and pages`, () => {
@@ -131,6 +132,7 @@ for (const pollType of ["regular", "ranked"]) {
       ...poll.options[0], nominationId: `long-book-${index}`,
       title: `Book ${index} ${"a long title ".repeat(100)}`, author: "Author ".repeat(28),
       imageUrl: `https://example.com/${"cover".repeat(180)}.jpg`,
+      reason: "An excellent choice 📚 with plenty to discuss. ".repeat(25).slice(0, 1000),
     }));
     for (const status of ["nominating", "active", "closed"]) {
       poll.status = status;
@@ -144,3 +146,30 @@ for (const pollType of ["regular", "ranked"]) {
     }
   });
 }
+
+for (const status of ["nominating", "active"]) {
+  test(`${status} shows a bounded reason preview beneath the book and preserves a short cover link`, () => {
+    const poll = pollFixture();
+    poll.status = status;
+    poll.nominationsCloseAt = new Date(Date.now() + 86_400_000);
+    poll.options[0].reason = "A wonderful mystery.\nEveryone can discuss the clues. " + "More detail. ".repeat(60);
+    poll.options[0].imageUrl = "https://example.com/cover.jpg";
+    const { embed, controls } = view(poll);
+    assert.match(embed.description, /Book A by Author 1\*\* \(\[cover\]/);
+    assert.match(embed.description, /\n> A wonderful mystery\. Everyone can discuss the clues\./);
+    assert.ok(embed.description.includes("…"));
+    assert.ok(!embed.description.includes(poll.options[0].reason));
+    assert.match(embed.description, /Book details/);
+    assert.equal(controls.filter(control => control.label === "Book details").length, 1);
+  });
+}
+
+test("detail buttons on later public pages open the first book on that page", () => {
+  const poll = pollFixture();
+  poll.options = Array.from({ length: 45 }, (_, index) => ({ ...poll.options[0], nominationId: `book-${index}` }));
+  for (const status of ["nominating", "active", "closed"]) {
+    poll.status = status;
+    const { controls } = view(poll, 1);
+    assert.match(controls.find(control => control.label === "Book details").custom_id, /:book-20:open$/);
+  }
+});
